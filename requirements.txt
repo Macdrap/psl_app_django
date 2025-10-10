@@ -1,0 +1,14 @@
+# Django
+Django==5.2.7
+
+# Database
+psycopg2-binary==2.9.9
+
+# Environment variables
+python-decouple==3.8
+
+# Production server
+gunicorn==21.2.0
+
+# Whitenoise for static files (optional but recommended)
+whitenoise==6.6.0

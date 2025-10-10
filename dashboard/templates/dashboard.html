@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    .dashboard-header {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .dashboard-header h1 {
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+    
+    .dashboard-header p {
+        color: #6b7280;
+    }
+    
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+    
+    .dashboard-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.3s, box-shadow 0.3s;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+
+    .dashboard-card h3 {
+        color: rgb(88,70,164);
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .dashboard-card p {
+        color: #6b7280;
+        line-height: 1.6;
+    }
+
+    .dashboard-card .card-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+    }
+</style>
+
+<div class="dashboard-header">
+    <h1>Welcome, {{ user.get_full_name|default:user.username }}!</h1>
+    <p>Your workflow management dashboard</p>
+</div>
+
+<div class="dashboard-grid">
+    <a href="{% url 'sales_tracker' %}" class="dashboard-card">
+        <div class="card-icon">📊</div>
+        <h3>Sales Tracker</h3>
+        <p>Track and manage sales enquiries</p>
+    </a>
+
+    <a href="{% url 'monthly_awards_list' %}" class="dashboard-card">
+        <div class="card-icon">🏆</div>
+        <h3>Monthly Awards</h3>
+        <p>View awarded jobs by month</p>
+    </a>
+
+    <a href="{% url 'invoiced_jobs_list' %}" class="dashboard-card">
+        <div class="card-icon">💰</div>
+        <h3>Invoiced Jobs</h3>
+        <p>Track invoiced and pending jobs</p>
+    </a>
+</div>
+{% endblock %}

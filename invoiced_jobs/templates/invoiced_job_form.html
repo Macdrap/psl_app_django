@@ -1,0 +1,326 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ action }} Invoiced Job{% endblock %}
+
+{% block content %}
+<style>
+    .form-container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        padding: 2.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .form-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .form-header h1 {
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-header p {
+        color: #6b7280;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-grid.full-width {
+        grid-template-columns: 1fr;
+    }
+
+    .form-grid.three-col {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group label {
+        margin-bottom: 0.5rem;
+        color: #374151;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.3s;
+        font-family: inherit;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: rgb(88,70,164);
+        box-shadow: 0 0 0 3px rgba(88,70,164, 0.1);
+    }
+
+    textarea.form-input {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    select.form-input {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        padding-right: 2.5rem;
+    }
+
+    .error-message {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 2px solid #e5e7eb;
+    }
+
+    .btn {
+        padding: 0.875rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: none;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        flex: 1;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(88,70,164, 0.3);
+    }
+
+    .btn-secondary {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .btn-secondary:hover {
+        background: #d1d5db;
+    }
+
+    .required::after {
+        content: " *";
+        color: #ef4444;
+    }
+
+    .info-box {
+        background: #f0fdf4;
+        border: 1px solid #86efac;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        color: #166534;
+        font-size: 0.9rem;
+    }
+
+    .section-divider {
+        border-top: 2px solid #e5e7eb;
+        margin: 2rem 0;
+        padding-top: 1.5rem;
+    }
+
+    .section-header {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        margin: 2rem 0 1.5rem 0;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .award-helper {
+        background: #eff6ff;
+        border-left: 4px solid #3b82f6;
+        padding: 0.75rem 1rem;
+        border-radius: 4px;
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        color: #1e40af;
+    }
+    .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    table-layout: fixed; /* forces compact, equal-width columns */
+    word-wrap: break-word; /* allows text wrapping instead of expanding */
+}
+
+.table th, .table td {
+    padding: 6px 8px; /* slightly smaller padding */
+    text-align: left;
+    white-space: normal; /* allows multi-line text */
+    vertical-align: middle;
+}
+
+.table th {
+    background-color: #f2f2f2;
+    font-weight: 600;
+}
+
+.table tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+.table tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Make container flexible without horizontal scroll */
+.table-container {
+    overflow-x: hidden; /* no scrollbars */
+    width: 100%;
+}
+
+/* Optional: tighten card spacing if your table sits in cards */
+.card {
+    padding: 12px;
+}
+
+</style>
+
+<div class="form-container">
+    <div class="form-header">
+        <h1>{{ action }}</h1>
+        <p>{% if award %}Add invoice for Award #{{ award.job_number }}{% else %}Create a new invoice entry{% endif %}</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="section-header">📋 Invoice Details</div>
+
+        <!-- Monthly Award Link -->
+        <div class="form-grid full-width">
+            <div class="form-group">
+                <label for="{{ form.award.id_for_label }}" class="required">Monthly Award</label>
+                {{ form.award }}
+                {% if form.award.errors %}
+                    <div class="error-message">{{ form.award.errors }}</div>
+                {% endif %}
+                <div class="award-helper">
+                    💡 <strong>Tip:</strong> The dropdown shows Job Number - Company | Value | Award Date for easy identification
+                </div>
+            </div>
+        </div>
+
+        <!-- Description -->
+        <div class="form-grid full-width">
+            <div class="form-group">
+                <label for="{{ form.description.id_for_label }}">Description (Optional)</label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <div class="error-message">{{ form.description.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Date and Status -->
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="{{ form.date.id_for_label }}" class="required">Projected Invoice Date</label>
+                {{ form.date }}
+                {% if form.date.errors %}
+                    <div class="error-message">{{ form.date.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.status.id_for_label }}" class="required">Status</label>
+                {{ form.status }}
+                {% if form.status.errors %}
+                    <div class="error-message">{{ form.status.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <h3 style="margin-bottom: 1rem; color: #374151;">💰 Value Breakdown</h3>
+
+        <!-- Value Breakdown - Row 1 -->
+        <div class="form-grid three-col">
+            <div class="form-group">
+                <label for="{{ form.utility_value.id_for_label }}">Utility Value (£)</label>
+                {{ form.utility_value }}
+                {% if form.utility_value.errors %}
+                    <div class="error-message">{{ form.utility_value.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.cad_value.id_for_label }}">CAD Value (£)</label>
+                {{ form.cad_value }}
+                {% if form.cad_value.errors %}
+                    <div class="error-message">{{ form.cad_value.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Value Breakdown - Row 2 -->
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="{{ form.topo_value.id_for_label }}">Topo Value (£)</label>
+                {{ form.topo_value }}
+                {% if form.topo_value.errors %}
+                    <div class="error-message">{{ form.topo_value.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.contractor_value.id_for_label }}">Contractor Value (£)</label>
+                {{ form.contractor_value }}
+                {% if form.contractor_value.errors %}
+                    <div class="error-message">{{ form.contractor_value.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="info-box">
+            ℹ️ <strong>Note:</strong> PSL Value will be automatically calculated as: Total Award Value - Contractor Value.
+            The sum of all value fields should equal the total award value.
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ action }}</button>
+            <a href="{% url 'invoiced_jobs_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ action }} Sales Enquiry{% endblock %}
+
+{% block content %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        padding: 2.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .form-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .form-header h1 {
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-header p {
+        color: #6b7280;
+    }
+    
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-grid.full-width {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-group label {
+        margin-bottom: 0.5rem;
+        color: #374151;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.3s;
+        font-family: inherit;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: rgb(88,70,164);
+        box-shadow: 0 0 0 3px rgba(88,70,164, 0.1);
+    }
+    
+    textarea.form-input {
+        resize: vertical;
+        min-height: 100px;
+    }
+    
+    .error-message {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 2px solid #e5e7eb;
+    }
+    
+    .btn {
+        padding: 0.875rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: none;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        flex: 1;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(88,70,164, 0.3);
+    }
+    
+    .btn-secondary {
+        background: #e5e7eb;
+        color: #374151;
+    }
+    
+    .btn-secondary:hover {
+        background: #d1d5db;
+    }
+    
+    .required::after {
+        content: " *";
+        color: #ef4444;
+    }
+</style>
+
+<div class="form-container">
+    <div class="form-header">
+        <h1>{{ action }} Sales Enquiry</h1>
+        <p>Fill in the details below to {{ action|lower }} a sales enquiry</p>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <!-- Job Number - Always shown -->
+        <div class="form-grid {% if is_add_form %}full-width{% endif %}">
+            <div class="form-group">
+                <label for="{{ form.job_number.id_for_label }}" class="required">Job Number</label>
+                {{ form.job_number }}
+                {% if form.job_number.errors %}
+                    <div class="error-message">{{ form.job_number.errors }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Date - Only shown in Edit form -->
+            {% if not is_add_form %}
+            <div class="form-group">
+                <label for="{{ form.date.id_for_label }}" class="required">Date</label>
+                {{ form.date }}
+                {% if form.date.errors %}
+                    <div class="error-message">{{ form.date.errors }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Value and Status - Only shown in Edit form -->
+        {% if not is_add_form %}
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="{{ form.value.id_for_label }}" class="required">Value (£)</label>
+                {{ form.value }}
+                {% if form.value.errors %}
+                    <div class="error-message">{{ form.value.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.status.id_for_label }}" class="required">Status</label>
+                {{ form.status }}
+                {% if form.status.errors %}
+                    <div class="error-message">{{ form.status.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Client and Contact - Always shown (Required) -->
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="{{ form.client.id_for_label }}" class="required">Company Name</label>
+                {{ form.client }}
+                {% if form.client.errors %}
+                    <div class="error-message">{{ form.client.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.client_contact.id_for_label }}" class="required">Contact Name</label>
+                {{ form.client_contact }}
+                {% if form.client_contact.errors %}
+                    <div class="error-message">{{ form.client_contact.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Email and Phone - Always shown (Optional) -->
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="{{ form.email.id_for_label }}">Email</label>
+                {{ form.email }}
+                {% if form.email.errors %}
+                    <div class="error-message">{{ form.email.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.phone.id_for_label }}">Phone</label>
+                {{ form.phone }}
+                {% if form.phone.errors %}
+                    <div class="error-message">{{ form.phone.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Location - Always shown -->
+        <div class="form-grid full-width">
+            <div class="form-group">
+                <label for="{{ form.location.id_for_label }}" class="required">Location</label>
+                {{ form.location }}
+                {% if form.location.errors %}
+                    <div class="error-message">{{ form.location.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ action }} Enquiry</button>
+            <a href="{% url 'sales_tracker' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

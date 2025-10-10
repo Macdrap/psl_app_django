@@ -1,0 +1,81 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-west-2
+
+    - name: Allow SSH from anywhere (0.0.0.0/0)
+      run: |
+        SECURITY_GROUP_ID=sg-0f9ae77e7d2f2fe50
+        echo "Allowing SSH from 0.0.0.0/0 on $SECURITY_GROUP_ID"
+        aws ec2 authorize-security-group-ingress --group-id $SECURITY_GROUP_ID --protocol tcp --port 22 --cidr 0.0.0.0/0 || echo "Rule might already exist"
+
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        timeout: 60s
+        command_timeout: 15m
+        script: |
+          cd /opt/psl-app
+          
+          # Show current status
+          echo "=== Current commit ==="
+          sudo git log -1 --oneline
+          
+          # Fetch and reset to latest (handles any local changes)
+          echo "=== Updating code ==="
+          sudo git fetch origin main
+          sudo git reset --hard origin/main
+          
+          # Show new commit
+          echo "=== Updated to commit ==="
+          sudo git log -1 --oneline
+          
+          # Create/update .env file with secrets from GitHub
+          echo "=== Creating .env file ==="
+          sudo tee .env > /dev/null <<EOF
+          SECRET_KEY="${{ secrets.SECRET_KEY }}"
+          DEBUG=False
+          DB_NAME="${{ secrets.DB_NAME }}"
+          DB_USER="${{ secrets.DB_USER }}"
+          DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
+          DB_HOST=db
+          DB_PORT=5432
+          ALLOWED_HOSTS="${{ secrets.EC2_HOST }}"
+          EOF
+          
+          # Make deploy script executable
+          sudo chmod +x scripts/deploy.sh
+          
+          # Run the deployment script
+          echo "=== Running deployment script ==="
+          sudo bash scripts/deploy.sh
+          
+          echo "=== Deployment finished ==="
+
+    - name: Revert SSH inbound rule to trusted IP
+      run: |
+        SECURITY_GROUP_ID=sg-0f9ae77e7d2f2fe50
+        TRUSTED_IP="${{ secrets.MY_CURRENT_IP_CIDR_FORMAT }}"
+        echo "Revoking SSH from 0.0.0.0/0 on $SECURITY_GROUP_ID"
+        aws ec2 revoke-security-group-ingress --group-id $SECURITY_GROUP_ID --protocol tcp --port 22 --cidr 0.0.0.0/0 || echo "Rule may not exist."
+        echo "Authorizing SSH from trusted IP $TRUSTED_IP"
+        aws ec2 authorize-security-group-ingress --group-id $SECURITY_GROUP_ID --protocol tcp --port 22 --cidr $TRUSTED_IP || true
+
