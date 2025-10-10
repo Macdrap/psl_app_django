@@ -231,7 +231,7 @@
         
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">{{ action }} Enquiry</button>
-            <a href="{% url 'sales_tracker' %}" class="btn btn-secondary">Cancel</a>
+            <a href="{% url 'sales_tracker' %}?page={{ page }}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 </div>

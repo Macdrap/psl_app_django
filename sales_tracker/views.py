@@ -2,6 +2,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.urls import reverse
+from urllib.parse import urlencode
 from .models import SalesEnquiry
 from .forms import SalesEnquiryAddForm, SalesEnquiryEditForm
 
@@ -41,21 +43,36 @@ def sales_tracker(request):
     else:
         enquiries = enquiries.order_by('-date', '-created_at')
 
+    # Get current page and per_page values
+    current_page = request.GET.get('page', 1)
+
+    # Get per_page value from request, default to 10
+    try:
+        per_page = int(request.GET.get('per_page', 10))
+        # Limit to reasonable values
+        if per_page < 1:
+            per_page = 10
+        elif per_page > 100:
+            per_page = 100
+    except (ValueError, TypeError):
+        per_page = 10
+
     # Pagination
-    paginator = Paginator(enquiries, 10)
-    page = request.GET.get('page', 1)
+    paginator = Paginator(enquiries, per_page)
 
     try:
-        enquiries_page = paginator.page(page)
+        enquiries_page = paginator.page(current_page)
     except PageNotAnInteger:
         enquiries_page = paginator.page(1)
     except EmptyPage:
+        # If page is out of range, deliver last page
         enquiries_page = paginator.page(paginator.num_pages)
 
     context = {
         'enquiries': enquiries_page,
         'sort_by': sort_by,
         'search_query': search_query,
+        'per_page': per_page,
     }
     return render(request, 'sales_tracker.html', context)
 
@@ -63,6 +80,12 @@ def sales_tracker(request):
 @login_required
 def add_sales_enquiry(request):
     """Add new sales enquiry"""
+    # Get the page, sort, search, and per_page from the request
+    page = request.GET.get('page', '1')
+    sort_by = request.GET.get('sort_by', 'date')
+    search_query = request.GET.get('search', '')
+    per_page = request.GET.get('per_page', '10')
+
     if request.method == 'POST':
         form = SalesEnquiryAddForm(request.POST)
         if form.is_valid():
@@ -70,14 +93,23 @@ def add_sales_enquiry(request):
             enquiry.created_by = request.user
             enquiry.save()
             messages.success(request, 'Sales enquiry added successfully!')
-            return redirect('sales_tracker')
+            # Redirect back to the same page with filters
+            params = {'page': page, 'sort_by': sort_by, 'per_page': per_page}
+            if search_query:
+                params['search'] = search_query
+            redirect_url = f"{reverse('sales_tracker')}?{urlencode(params)}"
+            return redirect(redirect_url)
     else:
         form = SalesEnquiryAddForm()
 
     context = {
         'form': form,
         'action': 'Add',
-        'is_add_form': True
+        'is_add_form': True,
+        'page': page,
+        'sort_by': sort_by,
+        'search_query': search_query,
+        'per_page': per_page,
     }
     return render(request, 'sales_enquiry_form.html', context)
 
@@ -87,6 +119,12 @@ def edit_sales_enquiry(request, pk):
     """Edit existing sales enquiry"""
     enquiry = get_object_or_404(SalesEnquiry, pk=pk)
     old_status = enquiry.status
+
+    # Get the page, sort, search, and per_page from the request
+    page = request.GET.get('page', '1')
+    sort_by = request.GET.get('sort_by', 'date')
+    search_query = request.GET.get('search', '')
+    per_page = request.GET.get('per_page', '10')
 
     if request.method == 'POST':
         form = SalesEnquiryEditForm(request.POST, instance=enquiry)
@@ -130,7 +168,8 @@ def edit_sales_enquiry(request, pk):
             elif old_status == 'Awarded' and updated_enquiry.status != 'Awarded':
                 deleted_count = MonthlyAward.objects.filter(sale=updated_enquiry).delete()[0]
                 if deleted_count > 0:
-                    messages.success(request, f'Status updated. {deleted_count} linked award(s) and invoice(s) removed.')
+                    messages.success(request,
+                                     f'Status updated. {deleted_count} linked award(s) and invoice(s) removed.')
                 else:
                     messages.success(request, 'Sales enquiry updated successfully!')
 
@@ -149,7 +188,12 @@ def edit_sales_enquiry(request, pk):
             else:
                 messages.success(request, 'Sales enquiry updated successfully!')
 
-            return redirect('sales_tracker')
+            # Redirect back to the same page with filters
+            params = {'page': page, 'sort_by': sort_by, 'per_page': per_page}
+            if search_query:
+                params['search'] = search_query
+            redirect_url = f"{reverse('sales_tracker')}?{urlencode(params)}"
+            return redirect(redirect_url)
     else:
         form = SalesEnquiryEditForm(instance=enquiry)
 
@@ -157,7 +201,11 @@ def edit_sales_enquiry(request, pk):
         'form': form,
         'action': 'Edit',
         'enquiry': enquiry,
-        'is_add_form': False
+        'is_add_form': False,
+        'page': page,
+        'sort_by': sort_by,
+        'search_query': search_query,
+        'per_page': per_page,
     }
     return render(request, 'sales_enquiry_form.html', context)
 
@@ -167,12 +215,27 @@ def delete_sales_enquiry(request, pk):
     """Delete sales enquiry"""
     enquiry = get_object_or_404(SalesEnquiry, pk=pk)
 
+    # Get the page, sort, search, and per_page from the request
+    page = request.GET.get('page', '1')
+    sort_by = request.GET.get('sort_by', 'date')
+    search_query = request.GET.get('search', '')
+    per_page = request.GET.get('per_page', '10')
+
     if request.method == 'POST':
         enquiry.delete()
         messages.success(request, 'Sales enquiry deleted successfully!')
-        return redirect('sales_tracker')
+        # Redirect back to the same page with filters
+        params = {'page': page, 'sort_by': sort_by, 'per_page': per_page}
+        if search_query:
+            params['search'] = search_query
+        redirect_url = f"{reverse('sales_tracker')}?{urlencode(params)}"
+        return redirect(redirect_url)
 
     context = {
-        'enquiry': enquiry
+        'enquiry': enquiry,
+        'page': page,
+        'sort_by': sort_by,
+        'search_query': search_query,
+        'per_page': per_page,
     }
     return render(request, 'sales_enquiry_confirm_delete.html', context)
