@@ -228,7 +228,18 @@
                 {% endif %}
             </div>
         </div>
-        
+
+                <!-- Notes - Always shown (Optional) -->
+        <div class="form-grid full-width">
+            <div class="form-group">
+                <label for="{{ form.note.id_for_label }}">Notes</label>
+                {{ form.note }}
+                {% if form.note.errors %}
+                    <div class="error-message">{{ form.note.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">{{ action }} Enquiry</button>
             <a href="{% url 'sales_tracker' %}?page={{ page }}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-secondary">Cancel</a>

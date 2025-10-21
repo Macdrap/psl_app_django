@@ -172,32 +172,23 @@ td {
     font-size: 0.875rem;
 }
 
+
+.row-status-pending {
+    background: #fde047 !important;  /* Darker amber/orange */
+}
+
+.row-status-awarded {
+    background: #d1fae5 !important;  /* Keep green as is */
+}
+
+.row-status-rejected {
+    background: #fca5a5 !important;  /* Darker red */
+}
+
+/* Update hover to work with colored rows */
 tbody tr:hover {
-    background-color: #f9fafb;
-}
-
-.status-badge {
-    padding: 0.25rem 0.5rem;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    display: inline-block;
-    white-space: nowrap;
-}
-
-.status-pending {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.status-awarded {
-    background: #d1fae5;
-    color: #065f46;
-}
-
-.status-rejected {
-    background: #fee2e2;
-    color: #991b1b;
+    filter: brightness(0.95);
+    transition: all 0.2s;
 }
 
 .action-buttons {
@@ -504,12 +495,13 @@ td small {
                 <th>Location</th>
                 <th>Value</th>
                 <th>Status</th>
+                <th>Notes</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for enquiry in enquiries %}
-            <tr>
+            <tr class="row-status-{{ enquiry.status|lower }}">
                 <td>{{ enquiry.job_number }}</td>
                 <td>{{ enquiry.date|date:"d M Y" }}</td>
                 <td>
@@ -519,9 +511,14 @@ td small {
                 <td>{{ enquiry.location|truncatewords:10 }}</td>
                 <td>£{{ enquiry.value|floatformat:2 }}</td>
                 <td>
-                    <span class="status-badge status-{{ enquiry.status|lower }}">
-                        {{ enquiry.status }}
-                    </span>
+                    <strong>{{ enquiry.status }}</strong>
+                </td>
+                <td>
+                    {% if enquiry.note %}
+                        <span title="{{ enquiry.note }}">{{ enquiry.note|truncatewords:8 }}</span>
+                    {% else %}
+                        <span style="color: #d1d5db; font-style: italic;">-</span>
+                    {% endif %}
                 </td>
                 <td>
                     <div class="action-buttons">

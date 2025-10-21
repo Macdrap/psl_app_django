@@ -7,16 +7,21 @@ class SalesEnquiryAddForm(forms.ModelForm):
 
     class Meta:
         model = SalesEnquiry
-        fields = ['job_number', 'location', 'client', 'client_contact', 'email', 'phone']
+        fields = ['job_number', 'location', 'client', 'client_contact', 'email', 'phone', 'note']
         widgets = {
             'job_number': forms.TextInput(attrs={
                 'class': 'form-input',
                 'placeholder': 'Enter job number'
             }),
+            'note': forms.Textarea(attrs={
+                'class': 'form-input',
+                'placeholder': 'Enter notes (optional)',
+                'rows': 1
+            }),
             'location': forms.Textarea(attrs={
                 'class': 'form-input',
                 'placeholder': 'Enter location',
-                'rows': 3
+                'rows': 1
             }),
             'client': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -53,7 +58,7 @@ class SalesEnquiryEditForm(forms.ModelForm):
     class Meta:
         model = SalesEnquiry
         fields = ['job_number', 'date', 'value', 'location', 'client',
-                  'client_contact', 'email', 'phone', 'status']
+                  'client_contact', 'email', 'phone', 'status', 'note']
         widgets = {
             'job_number': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -68,10 +73,15 @@ class SalesEnquiryEditForm(forms.ModelForm):
                 'placeholder': 'Enter value',
                 'step': '0.01'
             }),
+            'note': forms.Textarea(attrs={
+                'class': 'form-input',
+                'placeholder': 'Enter notes (optional)',
+                'rows': 1
+            }),
             'location': forms.Textarea(attrs={
                 'class': 'form-input',
                 'placeholder': 'Enter location',
-                'rows': 3
+                'rows': 1
             }),
             'client': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -103,3 +113,4 @@ class SalesEnquiryEditForm(forms.ModelForm):
         # Make email and phone not required
         self.fields['email'].required = False
         self.fields['phone'].required = False
+        self.fields['note'].required = False
