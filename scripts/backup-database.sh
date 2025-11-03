@@ -2,13 +2,15 @@
 
 # Database Backup Script to AWS S3
 # Backs up PostgreSQL database and uploads to S3
+# Keeps backups for 30 days locally and in S3
 
 set -e
 
 # Configuration
 BACKUP_DIR="/opt/psl-app/backups"
 S3_BUCKET="s3://psl-app-db-backups"
-BACKUP_FILE="psl-app-db-backup.sql.gz"
+BACKUP_FILE="psl-app-db-backup-$(date '+%Y-%m-%d_%H-%M-%S').sql.gz"
+RETENTION_DAYS=30  # keep backups for 30 days
 
 # Colors
 RED='\033[0;31m'
@@ -58,6 +60,30 @@ else
     echo -e "${RED}✗ S3 upload failed${NC}"
     exit 1
 fi
+
+# ------------------------
+# Cleanup old backups
+# ------------------------
+
+echo "Cleaning up old backups older than $RETENTION_DAYS days..."
+
+# Delete local backups older than RETENTION_DAYS
+find $BACKUP_DIR -name "psl-app-db-backup-*.sql.gz" -type f -mtime +$RETENTION_DAYS -exec rm -v {} \;
+
+# Delete old backups in S3 (older than RETENTION_DAYS)
+# Requires AWS CLI >=2 for --query with timestamps
+aws s3 ls $S3_BUCKET/ | while read -r line; do
+    file_date=$(echo $line | awk '{print $1}')
+    file_name=$(echo $line | awk '{print $4}')
+    if [[ -n "$file_name" ]]; then
+        file_ts=$(date -d "$file_date" +%s)
+        expire_ts=$(date -d "-$RETENTION_DAYS days" +%s)
+        if [ "$file_ts" -lt "$expire_ts" ]; then
+            echo "Deleting old S3 backup: $file_name"
+            aws s3 rm $S3_BUCKET/$file_name
+        fi
+    fi
+done
 
 echo ""
 echo "========================================="
