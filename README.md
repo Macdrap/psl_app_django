@@ -191,7 +191,7 @@ Job numbers sorted as version numbers
 Handles both numeric and text job numbers
 
 📊 Version History
-Version 1.0.0 (Current)
+Version 1.0.3 (Current)
 
 ✅ Sales Tracker with CRUD operations
 ✅ Monthly Awards with month/year navigation
