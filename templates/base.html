@@ -118,6 +118,10 @@
             <h1>PSL Workflow Management</h1>
             <div class="nav-links">
                 <a href="{% url 'dashboard' %}">Dashboard</a>
+                <a href="{% url 'statistic_explorer' %}">Statistic Explorer</a>
+                <a href="{% url 'sales_tracker' %}">Sales Tracker</a>
+                <a href="{% url 'monthly_awards_list' %}">Monthly Awards</a>
+                <a href="{% url 'invoiced_jobs_list' %}">Invoiced Jobs</a>
                 <span style="color: #666;">{{ user.username }}</span>
                 <form method="post" action="{% url 'logout' %}" style="display: inline;">
                     {% csrf_token %}

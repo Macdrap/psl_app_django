@@ -1,0 +1,571 @@
+{% extends 'base.html' %}
+
+{% block title %}Statistic Explorer{% endblock %}
+
+{% block content %}
+<style>
+    /* Page Header */
+    .page-header {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .page-header h1 {
+        color: #1f2937;
+        margin: 0;
+        font-size: 1.5rem;
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s;
+        border: none;
+        cursor: pointer;
+        display: inline-block;
+        white-space: nowrap;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(88,70,164, 0.3);
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+
+    .btn-export {
+        background: #dc2626;
+        color: white;
+    }
+
+    .btn-export:hover {
+        background: #b91c1c;
+    }
+
+    /* Filters */
+    .filters {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .filter-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #e5e7eb;
+        padding-bottom: 1rem;
+    }
+
+    .filter-tab {
+        padding: 0.5rem 1.5rem;
+        border-radius: 8px 8px 0 0;
+        background: #f3f4f6;
+        color: #6b7280;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+
+    .filter-tab.active {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+    }
+
+    .filter-tab:hover:not(.active) {
+        background: #e5e7eb;
+    }
+
+    .filter-content {
+        display: none;
+    }
+
+    .filter-content.active {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .filter-group label {
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.9rem;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        padding: 0.5rem 0.75rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+
+    .filter-group input[type="date"] {
+        min-width: 150px;
+    }
+
+    .btn-apply {
+        padding: 0.5rem 1.5rem;
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-apply:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(88,70,164, 0.3);
+    }
+
+    .btn-reset {
+        padding: 0.5rem 1rem;
+        background: #e5e7eb;
+        color: #374151;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.3s;
+    }
+
+    .btn-reset:hover {
+        background: #d1d5db;
+    }
+
+    /* Chart Section */
+    .chart-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .chart-header h2 {
+        color: #1f2937;
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+    .chart-header .filter-badge {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .chart-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 3rem;
+    }
+
+    .chart-wrapper {
+        position: relative;
+        width: 300px;
+        height: 300px;
+    }
+
+    .chart-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.5rem;
+        background: #f9fafb;
+        border-radius: 12px;
+        min-width: 250px;
+    }
+
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        flex-shrink: 0;
+    }
+
+    .legend-color.awarded { background: #10b981; }
+    .legend-color.rejected { background: #ef4444; }
+    .legend-color.pending { background: #f59e0b; }
+
+    .legend-info {
+        flex: 1;
+    }
+
+    .legend-label {
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.9rem;
+    }
+
+    .legend-value {
+        color: #6b7280;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+    }
+
+    .legend-count {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #1f2937;
+    }
+
+    /* Summary Cards */
+    .summary-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .summary-card {
+        text-align: center;
+        padding: 1rem;
+    }
+
+    .summary-card .label {
+        color: #6b7280;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .summary-card .value {
+        font-size: 1.75rem;
+        font-weight: bold;
+        color: #1f2937;
+    }
+
+    .summary-card .value.green { color: #10b981; }
+    .summary-card .value.red { color: #ef4444; }
+    .summary-card .value.amber { color: #f59e0b; }
+
+    /* No Data State */
+    .no-data {
+        text-align: center;
+        padding: 3rem;
+        color: #6b7280;
+    }
+
+    .no-data-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Export Button Group */
+    .export-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 1rem;
+        }
+
+        .page-header h1 {
+            width: 100%;
+            font-size: 1.25rem;
+        }
+
+        .filters {
+            padding: 1rem;
+        }
+
+        .filter-tabs {
+            flex-wrap: wrap;
+        }
+
+        .filter-content.active {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .filter-group {
+            width: 100%;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            flex: 1;
+        }
+
+        .chart-section {
+            padding: 1rem;
+        }
+
+        .chart-wrapper {
+            width: 250px;
+            height: 250px;
+        }
+
+        .legend-item {
+            min-width: 100%;
+        }
+
+        .summary-row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="page-header">
+    <h1>🔎 Statistic Explorer</h1>
+    <div class="export-buttons">
+        <a href="{% url 'statistic_explorer_pdf' %}?filter_type={{ filter_type }}&year={{ selected_year }}&month={{ selected_month }}&date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-export" target="_blank">📄 Export PDF</a>
+    </div>
+</div>
+
+<div class="filters">
+    <div class="filter-tabs">
+        <button type="button" class="filter-tab {% if filter_type == 'all' %}active{% endif %}" data-tab="all">All Time</button>
+        <button type="button" class="filter-tab {% if filter_type == 'month' %}active{% endif %}" data-tab="month">By Month</button>
+        <button type="button" class="filter-tab {% if filter_type == 'range' %}active{% endif %}" data-tab="range">Date Range</button>
+    </div>
+
+    <!-- All Time Filter -->
+    <form method="get" class="filter-content {% if filter_type == 'all' %}active{% endif %}" id="filter-all">
+        <input type="hidden" name="filter_type" value="all">
+        <button type="submit" class="btn-apply">Show All Data</button>
+        {% if filter_type != 'all' %}
+            <a href="{% url 'statistic_explorer' %}" class="btn-reset">Reset</a>
+        {% endif %}
+    </form>
+
+    <!-- Month/Year Filter -->
+    <form method="get" class="filter-content {% if filter_type == 'month' %}active{% endif %}" id="filter-month">
+        <input type="hidden" name="filter_type" value="month">
+
+        <div class="filter-group">
+            <label for="year">Year:</label>
+            <select name="year" id="year">
+                {% for year in year_range %}
+                    <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="month">Month:</label>
+            <select name="month" id="month">
+                {% for month_num, month_name in months %}
+                    <option value="{{ month_num }}" {% if month_num == selected_month %}selected{% endif %}>{{ month_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn-apply">Apply Filter</button>
+        <a href="{% url 'statistic_explorer' %}" class="btn-reset">Reset</a>
+    </form>
+
+    <!-- Date Range Filter -->
+    <form method="get" class="filter-content {% if filter_type == 'range' %}active{% endif %}" id="filter-range">
+        <input type="hidden" name="filter_type" value="range">
+
+        <div class="filter-group">
+            <label for="date_from">From:</label>
+            <input type="date" name="date_from" id="date_from" value="{{ date_from }}">
+        </div>
+
+        <div class="filter-group">
+            <label for="date_to">To:</label>
+            <input type="date" name="date_to" id="date_to" value="{{ date_to }}">
+        </div>
+
+        <button type="submit" class="btn-apply">Apply Filter</button>
+        <a href="{% url 'statistic_explorer' %}" class="btn-reset">Reset</a>
+    </form>
+</div>
+
+<!-- Sales Enquiry Chart -->
+<div class="chart-section">
+    <div class="chart-header">
+        <h2>Sales Enquiries by Status</h2>
+        <span class="filter-badge">{{ filter_description }}</span>
+    </div>
+
+    {% if sales_total_count > 0 %}
+    <div class="chart-container">
+        <div class="chart-wrapper">
+            <canvas id="salesChart"></canvas>
+        </div>
+
+        <div class="chart-legend">
+            <div class="legend-item">
+                <div class="legend-color awarded"></div>
+                <div class="legend-info">
+                    <div class="legend-label">Awarded</div>
+                    <div class="legend-value">£{{ sales_data.awarded.value|floatformat:2 }}</div>
+                </div>
+                <div class="legend-count">{{ sales_data.awarded.count }}</div>
+            </div>
+
+            <div class="legend-item">
+                <div class="legend-color rejected"></div>
+                <div class="legend-info">
+                    <div class="legend-label">Rejected</div>
+                    <div class="legend-value">£{{ sales_data.rejected.value|floatformat:2 }}</div>
+                </div>
+                <div class="legend-count">{{ sales_data.rejected.count }}</div>
+            </div>
+
+            <div class="legend-item">
+                <div class="legend-color pending"></div>
+                <div class="legend-info">
+                    <div class="legend-label">Pending</div>
+                    <div class="legend-value">£{{ sales_data.pending.value|floatformat:2 }}</div>
+                </div>
+                <div class="legend-count">{{ sales_data.pending.count }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="summary-row">
+        <div class="summary-card">
+            <div class="label">Total Quotes</div>
+            <div class="value">{{ sales_total_count }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Total Value</div>
+            <div class="value">£{{ sales_total_value|floatformat:2 }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Win Rate</div>
+            <div class="value green">{{ sales_data.awarded.percentage }}%</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Pending Rate</div>
+            <div class="value amber">{{ sales_data.pending.percentage }}%</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Rejection Rate</div>
+            <div class="value red">{{ sales_data.rejected.percentage }}%</div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="no-data">
+        <div class="no-data-icon">📊</div>
+        <h3>No data available</h3>
+        <p>No sales enquiries found for the selected period.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // Tab switching
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            // Remove active class from all tabs and contents
+            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.filter-content').forEach(c => c.classList.remove('active'));
+
+            // Add active class to clicked tab and corresponding content
+            this.classList.add('active');
+            document.getElementById('filter-' + this.dataset.tab).classList.add('active');
+        });
+    });
+
+    {% if sales_total_count > 0 %}
+    // Sales Doughnut Chart
+    const salesCtx = document.getElementById('salesChart').getContext('2d');
+    new Chart(salesCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Awarded', 'Rejected', 'Pending'],
+            datasets: [{
+                data: [
+                    {{ sales_data.awarded.count }},
+                    {{ sales_data.rejected.count }},
+                    {{ sales_data.pending.count }}
+                ],
+                backgroundColor: ['#10b981', '#ef4444', '#f59e0b'],
+                borderWidth: 0,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '60%',
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.raw / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.raw} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}

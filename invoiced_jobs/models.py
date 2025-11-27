@@ -64,12 +64,6 @@ class InvoicedJob(models.Model):
         if self.award:
             self.psl_value = self.utility_value + self.cad_value + self.topo_value
 
-        # Auto-move old pending invoices to current month
-        if self.status == 'Pending':
-            current_date = timezone.now().date()
-            if self.date < current_date.replace(day=1):  # If before current month
-                self.date = current_date
-
         super().save(*args, **kwargs)
 
     def get_total_invoice_value(self):

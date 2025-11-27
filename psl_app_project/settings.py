@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'sales_tracker',
     'monthly_awards',
     'invoiced_jobs',
+    'statistic_explorer',
 ]
 
 MIDDLEWARE = [

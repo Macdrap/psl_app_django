@@ -4,6 +4,7 @@
 
 {% block content %}
 <style>
+    /* Page Header */
     .page-header {
         background: white;
         padding: 2rem;
@@ -23,6 +24,7 @@
         font-size: 1.5rem;
     }
 
+    /* Buttons */
     .btn {
         padding: 0.75rem 1.5rem;
         border-radius: 8px;
@@ -45,109 +47,9 @@
         box-shadow: 0 5px 15px rgba(88,70,164, 0.3);
     }
 
-    .filters {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-
-    .filter-group {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-
-    .filter-section {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-
-    .filter-group label {
-        font-weight: 600;
-        color: #374151;
-        white-space: nowrap;
-        font-size: 0.9rem;
-    }
-
-    .filter-group select {
-        padding: 0.5rem 1rem;
-        border: 2px solid #e5e7eb;
-        border-radius: 8px;
-        font-size: 1rem;
-        min-width: 120px;
-    }
-
-    .summary-card {
-        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
-        color: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-
-    .summary-card h2 {
-        font-size: 2rem;
-        margin: 0;
-        font-weight: bold;
-    }
-
-    .summary-card p {
-        margin: 0.5rem 0 0 0;
-        font-size: 0.9rem;
-        opacity: 0.9;
-    }
-
-    .table-container {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    overflow-x: auto;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    thead {
-        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
-        color: white;
-    }
-
-    th {
-        padding: 0.75rem 0.5rem;
-        text-align: left;
-        font-weight: 600;
-        font-size: 0.8rem;
-        white-space: nowrap;
-    }
-
-    td {
-        padding: 0.75rem 0.5rem;
-        border-bottom: 1px solid #e5e7eb;
-        font-size: 0.875rem;
-    }
-
-    tbody tr:hover {
-        background-color: #f9fafb;
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 0.25rem;
-        flex-wrap: nowrap;
-    }
-
     .btn-small {
         padding: 0.4rem 0.75rem;
         font-size: 0.75rem;
-        white-space: nowrap;
     }
 
     .btn-edit {
@@ -177,17 +79,244 @@
         background: #059669;
     }
 
-    .empty-state {
-        text-align: center;
-        padding: 3rem;
-        color: #6b7280;
+    .btn-search {
+        padding: 0.5rem 1.5rem;
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        white-space: nowrap;
     }
 
-    .empty-state-icon {
-        font-size: 4rem;
-        margin-bottom: 1rem;
+    .btn-search:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(88,70,164, 0.3);
     }
 
+    .btn-clear-search {
+        padding: 0.5rem 1rem;
+        background: #e5e7eb;
+        color: #374151;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.3s;
+        white-space: nowrap;
+    }
+
+    .btn-clear-search:hover {
+        background: #d1d5db;
+    }
+
+    /* Filters */
+    .filters {
+        background: white;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .filter-group {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filter-group label {
+        font-weight: 600;
+        color: #374151;
+        white-space: nowrap;
+        font-size: 0.85rem;
+    }
+
+    .filter-group select {
+        padding: 0.5rem 0.75rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+
+    .search-input {
+        padding: 0.5rem 0.75rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        flex: 1;
+        min-width: 150px;
+        transition: all 0.3s;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: rgb(88,70,164);
+        box-shadow: 0 0 0 3px rgba(88,70,164, 0.1);
+    }
+
+    /* Summary Card */
+    .summary-card {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .summary-card h2 {
+        font-size: 2rem;
+        margin: 0;
+        font-weight: bold;
+    }
+
+    .summary-card p {
+        margin: 0.5rem 0 0 0;
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+
+    /* Table */
+    .table-container {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    thead {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+    }
+
+    th {
+        padding: 0.75rem 0.5rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+    td {
+        padding: 0.75rem 0.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 0.875rem;
+    }
+
+    tbody tr:hover:not(.selected) {
+        background-color: #f9fafb;
+    }
+
+    /* Selected row styling */
+    tbody tr.selected {
+        background: #3b82f6 !important;
+    }
+
+    tbody tr.selected td {
+        color: white;
+    }
+
+    tbody tr.selected td strong,
+    tbody tr.selected td small,
+    tbody tr.selected td span {
+        color: white !important;
+    }
+
+    tbody tr {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    /* Selection helper tooltip */
+    .selection-helper {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        z-index: 1000;
+        display: none;
+        min-width: 200px;
+    }
+
+    .selection-helper.visible {
+        display: block;
+        animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .selection-helper .helper-title {
+        font-size: 0.8rem;
+        opacity: 0.9;
+        margin-bottom: 0.25rem;
+    }
+
+    .selection-helper .helper-count {
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .selection-helper .helper-sum {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    .selection-helper .helper-hint {
+        font-size: 0.7rem;
+        opacity: 0.7;
+        margin-top: 0.5rem;
+        border-top: 1px solid rgba(255,255,255,0.2);
+        padding-top: 0.5rem;
+    }
+
+    .selection-helper .btn-clear-selection {
+        margin-top: 0.75rem;
+        padding: 0.4rem 0.75rem;
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .selection-helper .btn-clear-selection:hover {
+        background: rgba(255,255,255,0.3);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.25rem;
+        flex-wrap: nowrap;
+    }
+
+    /* Badges & Flags */
     .linked-badge {
         display: inline-block;
         padding: 0.25rem 0.5rem;
@@ -221,8 +350,6 @@
         border-radius: 4px;
         font-size: 0.7rem;
         font-weight: 600;
-        display: inline-block;
-        white-space: nowrap;
     }
 
     .error-flag {
@@ -232,8 +359,6 @@
         border-radius: 4px;
         font-size: 0.7rem;
         font-weight: 600;
-        display: inline-block;
-        white-space: nowrap;
     }
 
     .success-flag {
@@ -243,8 +368,59 @@
         border-radius: 4px;
         font-size: 0.7rem;
         font-weight: 600;
-        display: inline-block;
-        white-space: nowrap;
+    }
+
+    /* Pagination Styles */
+    .pagination-container {
+        padding: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid #e5e7eb;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .pagination-info {
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+
+    .pagination {
+        display: flex;
+        gap: 0.5rem;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        flex-wrap: wrap;
+    }
+
+    .pagination a,
+    .pagination span {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        text-decoration: none;
+        color: #374151;
+        transition: all 0.3s;
+        font-weight: 500;
+    }
+
+    .pagination a:hover {
+        background: #f3f4f6;
+        border-color: rgb(88,70,164);
+    }
+
+    .pagination .current {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        border-color: transparent;
+    }
+
+    .pagination .disabled {
+        color: #d1d5db;
+        cursor: not-allowed;
+        pointer-events: none;
     }
 
     /* Compact text styles */
@@ -257,7 +433,19 @@
         font-size: 0.75rem;
     }
 
-    /* Mobile responsiveness */
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6b7280;
+    }
+
+    .empty-state-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Mobile */
     @media (max-width: 768px) {
         .page-header {
             padding: 1rem;
@@ -277,17 +465,29 @@
             padding: 1rem;
         }
 
-        .filter-section {
-            width: 100%;
+        .filter-group {
+            gap: 0.5rem;
         }
 
-        .filter-section label {
-            min-width: 60px;
+        .filter-group label {
+            font-size: 0.8rem;
         }
 
         .filter-group select {
-            flex: 1;
+            padding: 0.4rem 0.5rem;
+            font-size: 0.85rem;
             min-width: 0;
+        }
+
+        .search-input {
+            min-width: 100px;
+            font-size: 0.85rem;
+        }
+
+        .btn-search,
+        .btn-clear-search {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.85rem;
         }
 
         .summary-card {
@@ -296,10 +496,6 @@
 
         .summary-card h2 {
             font-size: 1.5rem;
-        }
-
-        .summary-card p {
-            font-size: 0.8rem;
         }
 
         th {
@@ -322,175 +518,110 @@
             gap: 0.25rem;
         }
 
-        .invoice-count-badge,
-        .warning-flag,
-        .error-flag,
-        .success-flag {
-            font-size: 0.65rem;
-            padding: 0.2rem 0.4rem;
+        .pagination-container {
+            padding: 1rem;
+            flex-direction: column;
+            align-items: flex-start;
         }
-    }
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
 
-    .summary-card h2 {
-        font-size: 2rem;
-        margin: 0;
-        font-weight: bold;
-    }
+        .pagination {
+            width: 100%;
+            justify-content: center;
+        }
 
-    .summary-card p {
-        margin: 0.5rem 0 0 0;
-        font-size: 0.9rem;
-        opacity: 0.9;
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-
-    .btn-small {
-        padding: 0.5rem 1rem;
-        font-size: 0.875rem;
-    }
-
-    .btn-edit {
-        background: #3b82f6;
-        color: white;
-    }
-
-    .btn-edit:hover {
-        background: #2563eb;
-    }
-
-    .btn-delete {
-        background: #ef4444;
-        color: white;
-    }
-
-    .btn-delete:hover {
-        background: #dc2626;
-    }
-
-    .btn-add-invoice {
-        background: #10b981;
-        color: white;
-    }
-
-    .btn-add-invoice:hover {
-        background: #059669;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 3rem;
-        color: #6b7280;
-    }
-
-    .empty-state-icon {
-        font-size: 4rem;
-        margin-bottom: 1rem;
-    }
-
-    .linked-badge {
-        display: inline-block;
-        padding: 0.25rem 0.5rem;
-        background: #dbeafe;
-        color: #1e40af;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-
-    .invoice-count-badge {
-        display: inline-block;
-        background: #3b82f6;
-        color: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        min-width: 28px;
-        text-align: center;
-    }
-
-    .invoice-count-zero {
-        background: #ef4444;
-    }
-
-    .warning-flag {
-        background: #fef3c7;
-        color: #92400e;
-        padding: 0.375rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        display: inline-block;
-        margin-top: 0.25rem;
-    }
-
-    .error-flag {
-        background: #fee2e2;
-        color: #991b1c;
-        padding: 0.375rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        display: inline-block;
-        margin-top: 0.25rem;
-    }
-
-    .success-flag {
-        background: #d1fae5;
-        color: #065f46;
-        padding: 0.375rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        display: inline-block;
+        .pagination a,
+        .pagination span {
+            padding: 0.4rem 0.6rem;
+            font-size: 0.875rem;
+        }
     }
 </style>
 
 <div class="page-header">
-    <h1>Monthly Awards</h1>
-    <a href="{% url 'add_monthly_award' %}" class="btn btn-primary">+ Add New Award</a>
+    <h1>🏆 Monthly Awards</h1>
+    <a href="{% url 'add_monthly_award' %}?year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-primary">+ Add New Award</a>
 </div>
 
 <div class="filters">
     <form method="get" class="filter-group">
-        <div class="filter-section">
-            <label for="year">Year:</label>
-            <select name="year" id="year" onchange="this.form.submit()">
-                {% for year in year_range %}
-                    <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>
-                        {{ year }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
+        <label for="year">Year:</label>
+        <select name="year" id="year" onchange="this.form.submit()">
+            {% for year in year_range %}
+                <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+            {% endfor %}
+        </select>
 
-        <div class="filter-section">
-            <label for="month">Month:</label>
-            <select name="month" id="month" onchange="this.form.submit()">
-                {% for month_num, month_name in months %}
-                    <option value="{{ month_num }}" {% if month_num == selected_month %}selected{% endif %}>
-                        {{ month_name }}
-                    </option>
-                {% endfor %}
-            </select>
-        </div>
+        <label for="month">Month:</label>
+        <select name="month" id="month" onchange="this.form.submit()">
+            {% for month_num, month_name in months %}
+                <option value="{{ month_num }}" {% if month_num == selected_month %}selected{% endif %}>{{ month_name }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="sort_by">Sort:</label>
+        <select name="sort_by" id="sort_by" onchange="this.form.submit()">
+                <option value="date" {% if sort_by == 'date' or not sort_by %}selected{% endif %}>Date (Most Recent)</option>
+                <option value="job_number" {% if sort_by == 'job_number' %}selected{% endif %}>Job Number (Highest)</option>
+                <option value="value" {% if sort_by == 'value' %}selected{% endif %}>Value (Highest)</option>
+        </select>
+
+        <label for="per_page">Show:</label>
+        <select name="per_page" id="per_page" onchange="this.form.submit()">
+            <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+            <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+            <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+            <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+        </select>
+        <label for="search">Search:</label>
+        <input type="text" name="search" id="search" class="search-input" placeholder="By Job Number, Location, Client." value="{{ search_query }}">
+        <button type="submit" class="btn-search">Search</button>
+        {% if search_query %}
+            <a href="{% url 'monthly_awards_list' %}?year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&per_page={{ per_page }}" class="btn-clear-search">Clear</a>
+        {% endif %}
     </form>
 </div>
 
 <div class="summary-card">
     <h2>£{{ total_value|floatformat:2 }}</h2>
     <p>Total value for {% for m_num, m_name in months %}{% if m_num == selected_month %}{{ m_name }}{% endif %}{% endfor %} {{ selected_year }}</p>
-    <p>{{ awards_count }} award{{ awards_count|pluralize }}</p>
+    <p>{{ awards_count }} award{{ awards_count|pluralize }}{% if search_query %} matching "{{ search_query }}"{% endif %}</p>
 </div>
+
+<!-- Pagination at top -->
+{% if awards.has_other_pages %}
+<div class="table-container" style="margin-bottom: 1rem;">
+    <div class="pagination-container">
+        <div class="pagination-info">
+            Showing {{ awards.start_index }} to {{ awards.end_index }} of {{ awards.paginator.count }} entries
+        </div>
+        <ul class="pagination">
+            {% if awards.has_previous %}
+                <li><a href="?page=1&year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&search={{ search_query }}&per_page={{ per_page }}">First</a></li>
+                <li><a href="?page={{ awards.previous_page_number }}&year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&search={{ search_query }}&per_page={{ per_page }}">Previous</a></li>
+            {% else %}
+                <li><span class="disabled">First</span></li>
+                <li><span class="disabled">Previous</span></li>
+            {% endif %}
+
+            {% for num in awards.paginator.page_range %}
+                {% if awards.number == num %}
+                    <li><span class="current">{{ num }}</span></li>
+                {% elif num > awards.number|add:'-3' and num < awards.number|add:'3' %}
+                    <li><a href="?page={{ num }}&year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&search={{ search_query }}&per_page={{ per_page }}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if awards.has_next %}
+                <li><a href="?page={{ awards.next_page_number }}&year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&search={{ search_query }}&per_page={{ per_page }}">Next</a></li>
+                <li><a href="?page={{ awards.paginator.num_pages }}&year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&search={{ search_query }}&per_page={{ per_page }}">Last</a></li>
+            {% else %}
+                <li><span class="disabled">Next</span></li>
+                <li><span class="disabled">Last</span></li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
+{% endif %}
 
 <div class="table-container">
     {% if awards %}
@@ -502,7 +633,7 @@
                 <th>Company</th>
                 <th>Location</th>
                 <th>Value</th>
-                <th>Invoice Count</th>
+                <th>Invoices</th>
                 <th>Status</th>
                 <th>Source</th>
                 <th>Actions</th>
@@ -510,7 +641,7 @@
         </thead>
         <tbody>
             {% for award in awards %}
-            <tr {% if award.has_mismatch %}class="mismatch-row"{% endif %}>
+            <tr>
                 <td><strong>{{ award.job_number }}</strong></td>
                 <td>{{ award.date|date:"d M Y" }}</td>
                 <td>
@@ -528,7 +659,7 @@
                     {% if award.is_missing_invoice %}
                         <span class="error-flag">⚠️ NO INVOICES</span>
                     {% elif award.has_mismatch %}
-                        <span class="warning-flag">⚠️ VALUE MISMATCH</span>
+                        <span class="warning-flag">⚠️ MISMATCH</span>
                     {% else %}
                         <span class="success-flag">✓ COMPLETE</span>
                     {% endif %}
@@ -537,27 +668,142 @@
                     {% if award.sale %}
                         <span class="linked-badge">Sales Tracker</span>
                     {% else %}
-                        <span style="color: #6b7280; font-size: 0.875rem;">Manual Entry</span>
+                        <small style="color: #6b7280;">Manual</small>
                     {% endif %}
                 </td>
                 <td>
                     <div class="action-buttons">
-                        <a href="{% url 'add_invoice_to_award' award.pk %}" class="btn btn-small btn-add-invoice">+ Invoice</a>
-                        <a href="{% url 'edit_monthly_award' award.pk %}" class="btn btn-small btn-edit">Edit</a>
-                        <a href="{% url 'delete_monthly_award' award.pk %}" class="btn btn-small btn-delete">Delete</a>
+                        <a href="{% url 'add_invoice_to_award' award.pk %}?year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&per_page={{ per_page }}&page={{ awards.number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-small btn-add-invoice">+ Invoice</a>
+                        <a href="{% url 'edit_monthly_award' award.pk %}?year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&per_page={{ per_page }}&page={{ awards.number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-small btn-edit">Edit</a>
+                        <a href="{% url 'delete_monthly_award' award.pk %}?year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&per_page={{ per_page }}&page={{ awards.number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-small btn-delete">Delete</a>
                     </div>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+
     {% else %}
     <div class="empty-state">
         <div class="empty-state-icon">🏆</div>
-        <h3>No awards for this month</h3>
-        <p>No jobs were awarded in {% for m_num, m_name in months %}{% if m_num == selected_month %}{{ m_name }}{% endif %}{% endfor %} {{ selected_year }}</p>
-        <a href="{% url 'add_monthly_award' %}" class="btn btn-primary" style="margin-top: 1rem;">+ Add New Award</a>
+        <h3>No awards found</h3>
+        {% if search_query %}
+            <p>No results for "{{ search_query }}" in {% for m_num, m_name in months %}{% if m_num == selected_month %}{{ m_name }}{% endif %}{% endfor %} {{ selected_year }}</p>
+            <a href="{% url 'monthly_awards_list' %}?year={{ selected_year }}&month={{ selected_month }}" class="btn btn-primary" style="margin-top: 1rem;">Clear Search</a>
+        {% else %}
+            <p>No jobs were awarded in {% for m_num, m_name in months %}{% if m_num == selected_month %}{{ m_name }}{% endif %}{% endfor %} {{ selected_year }}</p>
+            <a href="{% url 'add_monthly_award' %}" class="btn btn-primary" style="margin-top: 1rem;">+ Add New Award</a>
+        {% endif %}
     </div>
     {% endif %}
 </div>
+
+<!-- Selection Helper Tooltip -->
+<div class="selection-helper" id="selectionHelper">
+    <div class="helper-title">Selected Rows</div>
+    <div class="helper-count"><span id="selectedCount">0</span> row(s) selected</div>
+    <div class="helper-sum">£<span id="selectedSum">0.00</span></div>
+    <div class="helper-hint">
+        Ctrl+Click: Toggle row<br>
+        Shift+Click: Select range<br>
+        Esc: Clear selection
+    </div>
+    <button class="btn-clear-selection" onclick="clearSelection()">Clear Selection</button>
+</div>
+
+<script>
+(function() {
+    const rows = document.querySelectorAll('tbody tr');
+    const helper = document.getElementById('selectionHelper');
+    const selectedCountEl = document.getElementById('selectedCount');
+    const selectedSumEl = document.getElementById('selectedSum');
+
+    let lastSelectedIndex = null;
+
+    // Get value from row (5th column - Value)
+    function getRowValue(row) {
+        const valueCell = row.querySelector('td:nth-child(5)');
+        if (valueCell) {
+            const text = valueCell.textContent.replace(/[£,]/g, '').trim();
+            return parseFloat(text) || 0;
+        }
+        return 0;
+    }
+
+    // Update the selection helper
+    function updateHelper() {
+        const selectedRows = document.querySelectorAll('tbody tr.selected');
+        const count = selectedRows.length;
+
+        if (count === 0) {
+            helper.classList.remove('visible');
+            return;
+        }
+
+        let sum = 0;
+        selectedRows.forEach(row => {
+            sum += getRowValue(row);
+        });
+
+        selectedCountEl.textContent = count;
+        selectedSumEl.textContent = sum.toLocaleString('en-GB', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        helper.classList.add('visible');
+    }
+
+    // Clear all selections
+    window.clearSelection = function() {
+        rows.forEach(row => row.classList.remove('selected'));
+        lastSelectedIndex = null;
+        updateHelper();
+    };
+
+    // Handle row click
+    rows.forEach((row, index) => {
+        row.addEventListener('click', function(e) {
+            // Ignore if clicking on a link or button
+            if (e.target.closest('a, button')) {
+                return;
+            }
+
+            if (e.shiftKey && lastSelectedIndex !== null) {
+                // Shift+Click: Select range
+                const start = Math.min(lastSelectedIndex, index);
+                const end = Math.max(lastSelectedIndex, index);
+
+                // If not holding Ctrl, clear previous selection
+                if (!e.ctrlKey && !e.metaKey) {
+                    rows.forEach(r => r.classList.remove('selected'));
+                }
+
+                // Select range
+                for (let i = start; i <= end; i++) {
+                    rows[i].classList.add('selected');
+                }
+            } else if (e.ctrlKey || e.metaKey) {
+                // Ctrl+Click: Toggle individual row
+                row.classList.toggle('selected');
+                lastSelectedIndex = index;
+            } else {
+                // Regular click: Select only this row
+                rows.forEach(r => r.classList.remove('selected'));
+                row.classList.add('selected');
+                lastSelectedIndex = index;
+            }
+
+            updateHelper();
+        });
+    });
+
+    // Escape key to clear selection
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            clearSelection();
+        }
+    });
+})();
+</script>
 {% endblock %}

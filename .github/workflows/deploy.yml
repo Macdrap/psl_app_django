@@ -63,6 +63,9 @@ jobs:
           
           # Make deploy script executable
           sudo chmod +x scripts/deploy.sh
+          sudo chmod +x scripts/backup-database.sh
+          sudo chmod +x scripts/renew.sh
+          sudo chmod +x scripts/start.sh
           
           # Run the deployment script
           echo "=== Running deployment script ==="

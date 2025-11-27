@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Statistics Report - {{ filter_description }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-size: 12px;
+            color: #1f2937;
+            line-height: 1.5;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #5846a4;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #5846a4;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .header .filter-badge {
+            display: inline-block;
+            background: #5846a4;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .stats-grid {
+            display: table;
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .stats-row {
+            display: table-row;
+        }
+
+        .stat-card {
+            display: table-cell;
+            width: 25%;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid #e5e7eb;
+        }
+
+        .stat-card .label {
+            font-size: 10px;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1f2937;
+        }
+
+        .stat-card .value.green { color: #10b981; }
+        .stat-card .value.red { color: #ef4444; }
+        .stat-card .value.amber { color: #f59e0b; }
+
+        .breakdown-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .breakdown-table th,
+        .breakdown-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border: 1px solid #e5e7eb;
+        }
+
+        .breakdown-table th {
+            background: #5846a4;
+            color: white;
+            font-weight: 600;
+        }
+
+        .breakdown-table tr:nth-child(even) {
+            background: #f9fafb;
+        }
+
+        .breakdown-table .status-awarded { color: #10b981; font-weight: 600; }
+        .breakdown-table .status-rejected { color: #ef4444; font-weight: 600; }
+        .breakdown-table .status-pending { color: #f59e0b; font-weight: 600; }
+
+        .breakdown-table tfoot td {
+            background: #f3f4f6;
+            font-weight: bold;
+        }
+
+        .color-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        .color-awarded { background: #10b981; }
+        .color-rejected { background: #ef4444; }
+        .color-pending { background: #f59e0b; }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            font-size: 10px;
+            color: #9ca3af;
+        }
+
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #5846a4;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .print-button:hover {
+            background: #4a3b8c;
+        }
+
+        @media print {
+            .print-button {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button" onclick="window.print()">🖨️ Print / Save as PDF</button>
+
+    <div class="header">
+        <h1>🔎 Statistics Report</h1>
+        <div class="subtitle">Sales Enquiry Analysis</div>
+        <div class="filter-badge">{{ filter_description }}</div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="section">
+        <div class="section-title">Summary Overview</div>
+        <div class="stats-grid">
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="label">Total Quotes</div>
+                    <div class="value">{{ sales_total_count }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Total Value</div>
+                    <div class="value">£{{ sales_total_value|floatformat:2 }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Win Rate</div>
+                    <div class="value green">{{ sales_data.awarded.percentage }}%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Rejection Rate</div>
+                    <div class="value red">{{ sales_data.rejected.percentage }}%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Breakdown -->
+    <div class="section">
+        <div class="section-title">Sales Enquiries by Status</div>
+        <table class="breakdown-table">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Count</th>
+                    <th>Value</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <span class="color-indicator color-awarded"></span>
+                        <span class="status-awarded">Awarded</span>
+                    </td>
+                    <td>{{ sales_data.awarded.count }}</td>
+                    <td>£{{ sales_data.awarded.value|floatformat:2 }}</td>
+                    <td>{{ sales_data.awarded.percentage }}%</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="color-indicator color-rejected"></span>
+                        <span class="status-rejected">Rejected</span>
+                    </td>
+                    <td>{{ sales_data.rejected.count }}</td>
+                    <td>£{{ sales_data.rejected.value|floatformat:2 }}</td>
+                    <td>{{ sales_data.rejected.percentage }}%</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="color-indicator color-pending"></span>
+                        <span class="status-pending">Pending</span>
+                    </td>
+                    <td>{{ sales_data.pending.count }}</td>
+                    <td>£{{ sales_data.pending.value|floatformat:2 }}</td>
+                    <td>{{ sales_data.pending.percentage }}%</td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td><strong>Total</strong></td>
+                    <td><strong>{{ sales_total_count }}</strong></td>
+                    <td><strong>£{{ sales_total_value|floatformat:2 }}</strong></td>
+                    <td><strong>100%</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="footer">
+        <p>Generated on {% now "d F Y \a\t H:i" %}</p>
+        <p>PSL Workflow Management System</p>
+    </div>
+</body>
+</html>

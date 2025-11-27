@@ -6,6 +6,10 @@ from django.urls import reverse
 from urllib.parse import urlencode
 from .models import SalesEnquiry
 from .forms import SalesEnquiryAddForm, SalesEnquiryEditForm
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+from django.template.loader import render_to_string
+from django.db.models import Q, Max
 
 
 @login_required
@@ -19,7 +23,8 @@ def sales_tracker(request):
         from django.db.models import Q
         enquiries = enquiries.filter(
             Q(job_number__icontains=search_query) |
-            Q(location__icontains=search_query)
+            Q(location__icontains=search_query) |
+            Q(client__icontains=search_query)
         )
 
     # Sort by filter
@@ -48,7 +53,7 @@ def sales_tracker(request):
 
     # Get per_page value from request, default to 10
     try:
-        per_page = int(request.GET.get('per_page', 10))
+        per_page = int(request.GET.get('per_page', 100))
         # Limit to reasonable values
         if per_page < 1:
             per_page = 10
@@ -68,11 +73,18 @@ def sales_tracker(request):
         # If page is out of range, deliver last page
         enquiries_page = paginator.page(paginator.num_pages)
 
+    latest_update = SalesEnquiry.objects.aggregate(
+        latest=Max('updated_at')
+    )['latest']
+    total_count = enquiries.count()
+
     context = {
         'enquiries': enquiries_page,
         'sort_by': sort_by,
         'search_query': search_query,
         'per_page': per_page,
+        'latest_update': latest_update.isoformat() if latest_update else '',
+        'total_count': total_count,
     }
     return render(request, 'sales_tracker.html', context)
 
@@ -239,3 +251,116 @@ def delete_sales_enquiry(request, pk):
         'per_page': per_page,
     }
     return render(request, 'sales_enquiry_confirm_delete.html', context)
+
+
+@require_GET
+def sales_tracker_poll(request):
+    """
+    API endpoint for polling updates.
+    Returns latest data timestamp and optionally full table HTML.
+    """
+    from .models import SalesEnquiry
+
+    # Get the latest update timestamp from the database
+    latest_update = SalesEnquiry.objects.aggregate(
+        latest=Max('updated_at')
+    )['latest']
+
+    # Get client's last known update time
+    client_last_update = request.GET.get('last_update', '')
+
+    # Check if there are new updates
+    has_updates = False
+    if latest_update:
+        latest_str = latest_update.isoformat()
+        if not client_last_update or client_last_update < latest_str:
+            has_updates = True
+
+    response_data = {
+        'has_updates': has_updates,
+        'latest_update': latest_update.isoformat() if latest_update else None,
+    }
+
+    # If there are updates, include the updated data
+    if has_updates:
+        # Get filter parameters (same as your main view)
+        year = request.GET.get('year')
+        month = request.GET.get('month')
+        status = request.GET.get('status')
+        search_query = request.GET.get('search', '')
+        sort_by = request.GET.get('sort_by', 'date')
+        per_page = request.GET.get('per_page', 100)
+        page = request.GET.get('page', 1)
+
+        # Convert per_page to int
+        try:
+            per_page = int(per_page)
+            if per_page not in [10, 25, 50, 100]:
+                per_page = 100
+        except (ValueError, TypeError):
+            per_page = 100
+
+        # Build queryset with filters
+        enquiries = SalesEnquiry.objects.all()
+
+        if year:
+            enquiries = enquiries.filter(date__year=int(year))
+        if month:
+            enquiries = enquiries.filter(date__month=int(month))
+        if status:
+            enquiries = enquiries.filter(status=status)
+        if search_query:
+            enquiries = enquiries.filter(
+                Q(job_number__icontains=search_query) |
+                Q(location__icontains=search_query) |
+                Q(client__icontains=search_query)
+            )
+
+        # Sort
+        if sort_by == 'job_number':
+            enquiries = list(enquiries)
+
+            def sort_key(item):
+                job_num = item.job_number
+                try:
+                    if '.' in job_num:
+                        parts = job_num.split('.')
+                        return (0, -int(parts[0]), -int(parts[1]))
+                    else:
+                        return (0, -int(job_num), 0)
+                except (ValueError, TypeError):
+                    return (1, job_num, 0)
+
+            enquiries.sort(key=sort_key)
+        elif sort_by == 'value':
+            enquiries = enquiries.order_by('-value', '-date')
+        else:
+            enquiries = enquiries.order_by('-date', '-created_at')
+
+        # Calculate totals BEFORE pagination
+        if not isinstance(enquiries, list):
+            enquiries_list = list(enquiries)
+        else:
+            enquiries_list = enquiries
+
+        total_value = sum(e.value for e in enquiries_list)
+        total_count = len(enquiries_list)
+
+        # Apply pagination
+        paginator = Paginator(enquiries_list, per_page)
+        try:
+            enquiries_page = paginator.page(page)
+        except PageNotAnInteger:
+            enquiries_page = paginator.page(1)
+        except EmptyPage:
+            enquiries_page = paginator.page(paginator.num_pages)
+
+        # Render table body HTML (only the current page's rows)
+        response_data['table_html'] = render_to_string(
+            'partials/table_body.html',
+            {'enquiries': enquiries_page}
+        )
+        response_data['total_value'] = float(total_value)
+        response_data['count'] = total_count
+
+    return JsonResponse(response_data)

@@ -70,11 +70,10 @@
 }
 
 .search-section {
-    display: flex;
     gap: 0.5rem;
     align-items: center;
-    margin-left: auto;
     flex-wrap: wrap;
+    flex:1;
 }
 
 .filter-group label {
@@ -96,7 +95,8 @@
     border: 2px solid #e5e7eb;
     border-radius: 8px;
     font-size: 1rem;
-    width: 200px;
+    flex:1;
+    min-width: 200px;
     transition: all 0.3s;
 }
 
@@ -172,21 +172,117 @@ td {
     font-size: 0.875rem;
 }
 
-
+/* Row status colors */
 .row-status-pending {
-    background: #fde047 !important;  /* Darker amber/orange */
+    background: #fde047 !important;  /* Amber/yellow for pending */
+}
+
+.row-status-pending-zero {
+    background: #bfdbfe !important;  /* Light blue for pending with zero value */
 }
 
 .row-status-awarded {
-    background: #d1fae5 !important;  /* Keep green as is */
+    background: #86efac !important;  /* Darker green */
 }
 
 .row-status-rejected {
-    background: #fca5a5 !important;  /* Darker red */
+    background: #fca5a5 !important;  /* Red */
+}
+
+/* Selected row styling */
+tbody tr.selected {
+    background: #3b82f6 !important;
+}
+
+tbody tr.selected td {
+    color: white;
+}
+
+tbody tr.selected td strong,
+tbody tr.selected td small,
+tbody tr.selected td span {
+    color: white !important;
+}
+
+tbody tr {
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Selection helper tooltip */
+.selection-helper {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    z-index: 1000;
+    display: none;
+    min-width: 200px;
+}
+
+.selection-helper.visible {
+    display: block;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.selection-helper .helper-title {
+    font-size: 0.8rem;
+    opacity: 0.9;
+    margin-bottom: 0.25rem;
+}
+
+.selection-helper .helper-count {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+
+.selection-helper .helper-sum {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.selection-helper .helper-hint {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    margin-top: 0.5rem;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    padding-top: 0.5rem;
+}
+
+.selection-helper .btn-clear-selection {
+    margin-top: 0.75rem;
+    padding: 0.4rem 0.75rem;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.selection-helper .btn-clear-selection:hover {
+    background: rgba(255,255,255,0.3);
 }
 
 /* Update hover to work with colored rows */
-tbody tr:hover {
+tbody tr:hover:not(.selected) {
     filter: brightness(0.95);
     transition: all 0.2s;
 }
@@ -433,7 +529,7 @@ td small {
                     name="search"
                     id="search"
                     class="search-input"
-                    placeholder="Job number or location..."
+                    placeholder="By Job number, Location, Client."
                     value="{{ search_query }}"
                 >
                 <button type="submit" class="btn-search">Search</button>
@@ -501,7 +597,7 @@ td small {
         </thead>
         <tbody>
             {% for enquiry in enquiries %}
-            <tr class="row-status-{{ enquiry.status|lower }}">
+            <tr data-enquiry-id="{{ enquiry.id }}" class="{% if enquiry.status == 'Pending' and enquiry.value == 0 %}row-status-pending-zero{% else %}row-status-{{ enquiry.status|lower }}{% endif %}">
                 <td>{{ enquiry.job_number }}</td>
                 <td>{{ enquiry.date|date:"d M Y" }}</td>
                 <td>
@@ -540,4 +636,259 @@ td small {
     </div>
     {% endif %}
 </div>
+
+<!-- Selection Helper Tooltip -->
+<div class="selection-helper" id="selectionHelper">
+    <div class="helper-title">Selected Rows</div>
+    <div class="helper-count"><span id="selectedCount">0</span> row(s) selected</div>
+    <div class="helper-sum">£<span id="selectedSum">0.00</span></div>
+    <div class="helper-hint">
+        Ctrl+Click: Toggle row<br>
+        Shift+Click: Select range<br>
+        Esc: Clear selection
+    </div>
+    <button class="btn-clear-selection" onclick="clearSelection()">Clear Selection</button>
+</div>
+
+
+<script>
+(function() {
+    // =============================================
+    // ROW SELECTION (using event delegation)
+    // =============================================
+    const tbody = document.querySelector('tbody');
+    const helper = document.getElementById('selectionHelper');
+    const selectedCountEl = document.getElementById('selectedCount');
+    const selectedSumEl = document.getElementById('selectedSum');
+
+    let lastSelectedIndex = null;
+
+    // Get all current rows (fresh query each time)
+    function getRows() {
+        return Array.from(document.querySelectorAll('tbody tr'));
+    }
+
+    // Get value from row (5th column - Value)
+    function getRowValue(row) {
+        const valueCell = row.querySelector('td:nth-child(5)');
+        if (valueCell) {
+            const text = valueCell.textContent.replace(/[£,]/g, '').trim();
+            return parseFloat(text) || 0;
+        }
+        return 0;
+    }
+
+    // Update the selection helper
+    function updateHelper() {
+        const selectedRows = document.querySelectorAll('tbody tr.selected');
+        const count = selectedRows.length;
+
+        if (count === 0) {
+            helper.classList.remove('visible');
+            return;
+        }
+
+        let sum = 0;
+        selectedRows.forEach(row => {
+            sum += getRowValue(row);
+        });
+
+        selectedCountEl.textContent = count;
+        selectedSumEl.textContent = sum.toLocaleString('en-GB', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        helper.classList.add('visible');
+    }
+
+    // Clear all selections
+    window.clearSelection = function() {
+        document.querySelectorAll('tbody tr.selected').forEach(row => {
+            row.classList.remove('selected');
+        });
+        lastSelectedIndex = null;
+        updateHelper();
+    };
+
+    // Event delegation - handle clicks on tbody
+    if (tbody) {
+        tbody.addEventListener('click', function(e) {
+            // Ignore if clicking on a link or button
+            if (e.target.closest('a, button')) {
+                return;
+            }
+
+            const row = e.target.closest('tr');
+            if (!row) return;
+
+            const rows = getRows();
+            const index = rows.indexOf(row);
+            if (index === -1) return;
+
+            if (e.shiftKey && lastSelectedIndex !== null) {
+                // Shift+Click: Select range
+                const start = Math.min(lastSelectedIndex, index);
+                const end = Math.max(lastSelectedIndex, index);
+
+                // If not holding Ctrl, clear previous selection
+                if (!e.ctrlKey && !e.metaKey) {
+                    rows.forEach(r => r.classList.remove('selected'));
+                }
+
+                // Select range
+                for (let i = start; i <= end; i++) {
+                    rows[i].classList.add('selected');
+                }
+            } else if (e.ctrlKey || e.metaKey) {
+                // Ctrl+Click: Toggle individual row
+                row.classList.toggle('selected');
+                lastSelectedIndex = index;
+            } else {
+                // Regular click: Select only this row
+                rows.forEach(r => r.classList.remove('selected'));
+                row.classList.add('selected');
+                lastSelectedIndex = index;
+            }
+
+            updateHelper();
+        });
+    }
+
+    // Escape key to clear selection
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            clearSelection();
+        }
+    });
+
+    // =============================================
+    // POLLING FOR REAL-TIME UPDATES
+    // =============================================
+    const POLL_INTERVAL = 3000; // 3 seconds
+    const POLL_URL = '{% url "sales_tracker_poll" %}';
+
+    // Initialize with server's values to prevent flash on page load
+    let lastUpdate = '{{ latest_update|default:"" }}';
+    let lastCount = '{{ total_count|default:"" }}';
+    let isPolling = true;
+
+    // Get current filter params from URL
+    function getFilterParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const params = new URLSearchParams();
+
+        // Pass ALL filter params including page and per_page
+        ['year', 'month', 'status', 'search', 'sort_by', 'per_page', 'page'].forEach(key => {
+            if (urlParams.has(key)) {
+                params.set(key, urlParams.get(key));
+            }
+        });
+
+        if (lastUpdate) {
+            params.set('last_update', lastUpdate);
+        }
+        if (lastCount) {
+            params.set('last_count', lastCount);
+        }
+
+        return params.toString();
+    }
+
+    // Update the table with new data
+    function updateTable(data) {
+        if (data.has_updates && data.table_html) {
+            const tbody = document.querySelector('table tbody');
+            if (tbody) {
+                // Store selected row IDs before update
+                const selectedIds = Array.from(document.querySelectorAll('tbody tr.selected'))
+                    .map(row => row.dataset.enquiryId);
+
+                // Update table content
+                tbody.innerHTML = data.table_html;
+
+                // Re-apply selection to rows that still exist
+                selectedIds.forEach(id => {
+                    const row = document.querySelector(`tbody tr[data-enquiry-id="${id}"]`);
+                    if (row) {
+                        row.classList.add('selected');
+                    }
+                });
+
+                // Reset lastSelectedIndex since rows may have changed
+                lastSelectedIndex = null;
+
+                // Update the selection helper (in case selected rows were deleted)
+                updateHelper();
+
+                // Update totals if provided
+                if (data.total_value !== undefined) {
+                    const totalEl = document.querySelector('.summary-card h2');
+                    if (totalEl) {
+                        totalEl.textContent = '£' + data.total_value.toLocaleString('en-GB', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                    }
+                }
+
+                if (data.count !== undefined) {
+                    const countEl = document.querySelector('.summary-card p');
+                    if (countEl) {
+                        const text = countEl.textContent;
+                        countEl.textContent = text.replace(/\d+ enquir(y|ies)/,
+                            data.count + ' enquir' + (data.count === 1 ? 'y' : 'ies'));
+                    }
+                }
+            }
+        }
+
+        // Update last known timestamp and count
+        if (data.latest_update) {
+            lastUpdate = data.latest_update;
+        }
+        if (data.current_count !== undefined) {
+            lastCount = data.current_count.toString();
+        }
+    }
+
+    // Poll for updates
+    async function poll() {
+        if (!isPolling) return;
+
+        try {
+            const response = await fetch(`${POLL_URL}?${getFilterParams()}`);
+            if (response.ok) {
+                const data = await response.json();
+                updateTable(data);
+            }
+        } catch (error) {
+            console.error('Polling error:', error);
+        }
+
+        // Schedule next poll
+        setTimeout(poll, POLL_INTERVAL);
+    }
+
+    // Start polling when page loads
+    poll();
+
+    // Pause polling when tab is not visible (save resources)
+    document.addEventListener('visibilitychange', function() {
+        isPolling = !document.hidden;
+        if (isPolling) {
+            poll(); // Resume immediately when tab becomes visible
+        }
+    });
+
+    // Expose control functions globally
+    window.salesTrackerPolling = {
+        pause: () => { isPolling = false; },
+        resume: () => { isPolling = true; poll(); },
+        refresh: () => { lastUpdate = null; poll(); }
+    };
+})();
+</script>
 {% endblock %}
+
+

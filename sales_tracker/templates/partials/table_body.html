@@ -1,0 +1,34 @@
+{% for enquiry in enquiries %}
+<tr data-enquiry-id="{{ enquiry.id }}" class="{% if enquiry.status == 'Pending' and enquiry.value == 0 %}row-status-pending-zero{% else %}row-status-{{ enquiry.status|lower }}{% endif %}">
+    <td>{{ enquiry.job_number }}</td>
+    <td>{{ enquiry.date|date:"d M Y" }}</td>
+    <td>
+        <strong>{{ enquiry.client }}</strong><br>
+        <small style="color: #6b7280;">{{ enquiry.client_contact }}</small>
+    </td>
+    <td>{{ enquiry.location|truncatewords:10 }}</td>
+    <td>£{{ enquiry.value|floatformat:2 }}</td>
+    <td>
+        <strong>{{ enquiry.status }}</strong>
+    </td>
+    <td>
+        {% if enquiry.note %}
+            <span title="{{ enquiry.note }}">{{ enquiry.note|truncatewords:8 }}</span>
+        {% else %}
+            <span style="color: #d1d5db; font-style: italic;">-</span>
+        {% endif %}
+    </td>
+    <td>
+        <div class="action-buttons">
+            <a href="{% url 'edit_sales_enquiry' enquiry.pk %}" class="btn btn-small btn-edit">Edit</a>
+            <a href="{% url 'delete_sales_enquiry' enquiry.pk %}" class="btn btn-small btn-delete">Delete</a>
+        </div>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="8" style="text-align: center; padding: 2rem; color: #6b7280;">
+        No enquiries found
+    </td>
+</tr>
+{% endfor %}
