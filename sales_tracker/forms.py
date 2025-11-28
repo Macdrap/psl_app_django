@@ -1,9 +1,25 @@
 from django import forms
 from .models import SalesEnquiry
-
+from django.db.models import FloatField
+from django.db.models.functions import Cast
 
 class SalesEnquiryAddForm(forms.ModelForm):
     """Form for adding new enquiries - excludes date, value, and status"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make email and phone not required
+        self.fields['email'].required = False
+        self.fields['phone'].required = False
+        # Get the highest job number from the database
+        last_job = SalesEnquiry.objects.annotate(
+            job_number_int=Cast('job_number', FloatField())
+        ).order_by('-job_number_int').first()
+
+        if last_job:
+            self.fields['job_number'].initial = int(float(last_job.job_number) + 1)
+        else:
+            self.fields['job_number'].initial = "1"
 
     class Meta:
         model = SalesEnquiry
@@ -44,12 +60,6 @@ class SalesEnquiryAddForm(forms.ModelForm):
             'client': 'Company Name',
             'client_contact': 'Contact Name',
         }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Make email and phone not required
-        self.fields['email'].required = False
-        self.fields['phone'].required = False
 
 
 class SalesEnquiryEditForm(forms.ModelForm):

@@ -252,7 +252,7 @@
         background: #d1fae5 !important;
     }
 
-    .row-follow-up-status-to_follow {
+    .follow-up-status-to_follow {
         background: #fca5a5;
     }
 
@@ -702,7 +702,7 @@
         </thead>
         <tbody>
             {% for job in jobs %}
-            <tr class="row-status-{{ job.status|lower }} row-follow-up-status-{{ job.follow_up_status|lower }}">
+            <tr class="row-status-{{ job.status|lower }}">
                 <td><strong>{{ job.award.job_number }}</strong></td>
                 <td>
                     <strong>{{ job.award.client }}</strong><br>
@@ -728,7 +728,7 @@
                 <td>£{{ job.this_invoice_total|floatformat:2 }}</td>
                 <td>£{{ job.psl_value|floatformat:2 }}</td>
                 <td><strong>{{ job.status }}</strong></td>
-                <td>
+                <td class = "follow-up-status-{{ job.follow_up_status|lower }}">
                     <strong>
                     {% if job.follow_up_status == 'followed_up' %}
                         Followed Up{% if job.followed_up_date %} - {{ job.followed_up_date|date:"d/m/Y" }}{% endif %}
