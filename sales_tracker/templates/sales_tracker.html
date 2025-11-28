@@ -473,7 +473,7 @@ td small {
 </style>
 
 <div class="page-header">
-    <h1>Sales Tracker</h1>
+    <h1>📊 Sales Tracker</h1>
     <a href="{% url 'add_sales_enquiry' %}?page={% if enquiries %}{{ enquiries.number }}{% else %}1{% endif %}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-primary">+ Add New Enquiry</a>
 </div>
 
@@ -772,14 +772,23 @@ td small {
     let lastUpdate = '{{ latest_update|default:"" }}';
     let lastCount = '{{ total_count|default:"" }}';
     let isPolling = true;
+    let isFirstPoll = true;  // Skip first poll to prevent race condition after redirect
 
     // Get current filter params from URL
     function getFilterParams() {
         const urlParams = new URLSearchParams(window.location.search);
         const params = new URLSearchParams();
 
-        // Pass ALL filter params including page and per_page
-        ['year', 'month', 'status', 'search', 'sort_by', 'per_page', 'page'].forEach(key => {
+        // Get per_page from the select element (more reliable than URL)
+        const perPageSelect = document.querySelector('select[name="per_page"]');
+        const perPageValue = perPageSelect ? perPageSelect.value : (urlParams.get('per_page') || '100');
+        params.set('per_page', perPageValue);
+
+        // Always send sort_by - default to 'date' if not in URL
+        params.set('sort_by', urlParams.get('sort_by') || 'date');
+
+        // Pass other filter params
+        ['year', 'month', 'status', 'search', 'page'].forEach(key => {
             if (urlParams.has(key)) {
                 params.set(key, urlParams.get(key));
             }
@@ -821,6 +830,9 @@ td small {
                 // Update the selection helper (in case selected rows were deleted)
                 updateHelper();
 
+                // Fix action links to include current filter params
+                fixActionLinks();
+
                 // Update totals if provided
                 if (data.total_value !== undefined) {
                     const totalEl = document.querySelector('.summary-card h2');
@@ -832,12 +844,12 @@ td small {
                     }
                 }
 
-                if (data.count !== undefined) {
+                if (data.current_count !== undefined) {
                     const countEl = document.querySelector('.summary-card p');
                     if (countEl) {
                         const text = countEl.textContent;
                         countEl.textContent = text.replace(/\d+ enquir(y|ies)/,
-                            data.count + ' enquir' + (data.count === 1 ? 'y' : 'ies'));
+                            data.current_count + ' enquir' + (data.current_count === 1 ? 'y' : 'ies'));
                     }
                 }
             }
@@ -852,6 +864,47 @@ td small {
         }
     }
 
+    // Fix action links to include current URL params after polling update
+    function fixActionLinks() {
+        const currentParams = new URLSearchParams(window.location.search);
+
+        // Get per_page from the select element (more reliable than URL)
+        const perPageSelect = document.querySelector('select[name="per_page"]');
+        const perPageValue = perPageSelect ? perPageSelect.value : (currentParams.get('per_page') || '100');
+
+        // Get sort_by from URL or default
+        const sortByValue = currentParams.get('sort_by') || 'date';
+
+        // Build query string
+        const queryParts = [];
+
+        // Always include these
+        queryParts.push(`per_page=${encodeURIComponent(perPageValue)}`);
+        queryParts.push(`sort_by=${encodeURIComponent(sortByValue)}`);
+
+        // Include page if present
+        if (currentParams.has('page')) {
+            queryParts.push(`page=${encodeURIComponent(currentParams.get('page'))}`);
+        }
+
+        // Include search if present
+        if (currentParams.has('search')) {
+            queryParts.push(`search=${encodeURIComponent(currentParams.get('search'))}`);
+        }
+
+        const queryString = '?' + queryParts.join('&');
+
+        // Update all action links in the table
+        document.querySelectorAll('tbody .action-buttons a').forEach(link => {
+            const href = link.getAttribute('href');
+            if (href) {
+                // Remove existing query params and add new ones
+                const baseUrl = href.split('?')[0];
+                link.setAttribute('href', baseUrl + queryString);
+            }
+        });
+    }
+
     // Poll for updates
     async function poll() {
         if (!isPolling) return;
@@ -860,7 +913,21 @@ td small {
             const response = await fetch(`${POLL_URL}?${getFilterParams()}`);
             if (response.ok) {
                 const data = await response.json();
-                updateTable(data);
+
+                // On first poll, just sync the values without updating table
+                // This prevents flash/reorder right after page load
+                if (isFirstPoll) {
+                    if (data.latest_update) {
+                        lastUpdate = data.latest_update;
+                    }
+                    if (data.current_count !== undefined) {
+                        lastCount = data.current_count.toString();
+                    }
+                    isFirstPoll = false;
+                } else {
+                    // On subsequent polls, update table if needed
+                    updateTable(data);
+                }
             }
         } catch (error) {
             console.error('Polling error:', error);
@@ -885,10 +952,26 @@ td small {
     window.salesTrackerPolling = {
         pause: () => { isPolling = false; },
         resume: () => { isPolling = true; poll(); },
-        refresh: () => { lastUpdate = null; poll(); }
+        refresh: () => {
+            lastUpdate = '';
+            lastCount = '';
+            isFirstPoll = false;  // Force update on manual refresh
+            poll();
+        }
     };
+
+    // Pause polling when user clicks any link (prevents race conditions during navigation)
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('a');
+        if (link && link.href && !link.href.startsWith('javascript:')) {
+            isPolling = false;
+        }
+    });
+
+    // Also pause on form submission
+    document.addEventListener('submit', function() {
+        isPolling = false;
+    });
 })();
 </script>
 {% endblock %}
-
-

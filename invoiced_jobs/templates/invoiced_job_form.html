@@ -317,10 +317,53 @@
             The sum of all value fields should equal the total award value.
         </div>
 
+        <div class="section-divider"></div>
+        <h3 style="margin-bottom: 1rem; color: #374151;">📅 Follow-Up</h3>
+
+        <div class="form-grid">
+            <div class="form-group" style="display: flex; flex-direction: column;">
+                <label for="{{ form.follow_up_status.id_for_label }}">Follow-Up Status</label>
+                {{ form.follow_up_status }}
+                {% if form.follow_up_status.errors %}
+                    <div class="error-message">{{ form.follow_up_status.errors }}</div>
+                {% endif %}
+
+                <div id="followed-up-date-group" style="margin-top: 1rem;">
+                    <label for="{{ form.followed_up_date.id_for_label }}">Followed-Up Date</label>
+                    {{ form.followed_up_date }}
+                    {% if form.followed_up_date.errors %}
+                        <div class="error-message">{{ form.followed_up_date.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">{{ action }}</button>
             <a href="{% url 'invoiced_jobs_list' %}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const followUpStatus = document.getElementById('{{ form.follow_up_status.id_for_label }}');
+    const followedUpDateGroup = document.getElementById('followed-up-date-group');
+
+    function toggleFollowedUpDate() {
+        if (followUpStatus.value === 'followed_up') {
+            followedUpDateGroup.style.display = 'block';
+        } else {
+            followedUpDateGroup.style.display = 'none';
+            // Optional: clear value if hidden
+            followedUpDateGroup.querySelector('input').value = '';
+        }
+    }
+
+    // Initial check
+    toggleFollowedUpDate();
+
+    // Listen for changes
+    followUpStatus.addEventListener('change', toggleFollowedUpDate);
+});
+</script>
 {% endblock %}

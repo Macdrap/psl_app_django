@@ -245,11 +245,15 @@
 
     /* Row status colors */
     .row-status-pending {
-        background: #fde047 !important;
+        background: #fde047 ;
     }
 
     .row-status-invoiced {
         background: #d1fae5 !important;
+    }
+
+    .row-follow-up-status-to_follow {
+        background: #fca5a5;
     }
 
     tbody tr:hover:not(.selected) {
@@ -588,8 +592,8 @@
             <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
             <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
         </select>
-
-        <input type="text" name="search" id="search" class="search-input" placeholder="Search job, location, client..." value="{{ search_query }}">
+        <label for="search">Search:</label>
+        <input type="text" name="search" id="search" class="search-input" placeholder="By Job Number, Location, Client." value="{{ search_query }}">
         <button type="submit" class="btn-search">Search</button>
         {% if search_query %}
             <a href="{% url 'invoiced_jobs_list' %}?year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&per_page={{ per_page }}" class="btn-clear-search">Clear</a>
@@ -692,12 +696,13 @@
                 <th>Invoice Total</th>
                 <th>PSL Value</th>
                 <th>Status</th>
+                <th>Follow up</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for job in jobs %}
-            <tr class="row-status-{{ job.status|lower }}">
+            <tr class="row-status-{{ job.status|lower }} row-follow-up-status-{{ job.follow_up_status|lower }}">
                 <td><strong>{{ job.award.job_number }}</strong></td>
                 <td>
                     <strong>{{ job.award.client }}</strong><br>
@@ -723,6 +728,17 @@
                 <td>£{{ job.this_invoice_total|floatformat:2 }}</td>
                 <td>£{{ job.psl_value|floatformat:2 }}</td>
                 <td><strong>{{ job.status }}</strong></td>
+                <td>
+                    <strong>
+                    {% if job.follow_up_status == 'followed_up' %}
+                        Followed Up{% if job.followed_up_date %} - {{ job.followed_up_date|date:"d/m/Y" }}{% endif %}
+                    {% elif job.follow_up_status == 'n_a' %}
+                        N/A
+                    {% else %}
+                        {{ job.get_follow_up_status_display }}
+                    {% endif %}
+                    </strong>
+                </td>
                 <td>
                     <div class="action-buttons">
                         <a href="{% url 'edit_invoiced_job' job.pk %}?year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&per_page={{ per_page }}&page={{ jobs.number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-small btn-edit">Edit</a>

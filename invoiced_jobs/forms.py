@@ -1,3 +1,5 @@
+from email.policy import default
+
 from django import forms
 from .models import InvoicedJob
 from monthly_awards.models import MonthlyAward
@@ -6,7 +8,6 @@ from monthly_awards.models import MonthlyAward
 class InvoicedJobForm(forms.ModelForm):
     """Form for creating/editing invoiced jobs with better award selection"""
 
-    # Add a search field for award selection
     award_search = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
@@ -20,7 +21,7 @@ class InvoicedJobForm(forms.ModelForm):
     class Meta:
         model = InvoicedJob
         fields = ['award', 'description', 'date', 'utility_value',
-                  'cad_value', 'topo_value', 'contractor_value', 'status']
+                  'cad_value', 'topo_value', 'contractor_value', 'status', 'follow_up_status', 'followed_up_date']
         widgets = {
             'award': forms.Select(attrs={
                 'class': 'form-input',
@@ -63,6 +64,14 @@ class InvoicedJobForm(forms.ModelForm):
             'status': forms.Select(attrs={
                 'class': 'form-input'
             }),
+            'follow_up_status': forms.Select(attrs={
+                'class': 'form-input',
+
+            }),
+            'followed_up_date': forms.DateInput(attrs={
+                'class': 'form-input',
+                'type': 'date'
+            }),
         }
         labels = {
             'award': 'Monthly Award',
@@ -72,6 +81,8 @@ class InvoicedJobForm(forms.ModelForm):
             'cad_value': 'CAD Value (£)',
             'topo_value': 'Topo Value (£)',
             'contractor_value': 'Contractor Value (£)',
+            'follow_up_status': 'Follow-Up Status',
+            'followed_up_date': 'Follow-Up Date',
         }
 
     def __init__(self, *args, **kwargs):

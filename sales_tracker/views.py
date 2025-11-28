@@ -76,7 +76,12 @@ def sales_tracker(request):
     latest_update = SalesEnquiry.objects.aggregate(
         latest=Max('updated_at')
     )['latest']
-    total_count = enquiries.count()
+
+    # Get total count - use len() if enquiries is a list, count() if queryset
+    if isinstance(enquiries, list):
+        total_count = len(enquiries)
+    else:
+        total_count = enquiries.count()
 
     context = {
         'enquiries': enquiries_page,
@@ -96,7 +101,7 @@ def add_sales_enquiry(request):
     page = request.GET.get('page', '1')
     sort_by = request.GET.get('sort_by', 'date')
     search_query = request.GET.get('search', '')
-    per_page = request.GET.get('per_page', '10')
+    per_page = request.GET.get('per_page', '100')  # Match main view default
 
     if request.method == 'POST':
         form = SalesEnquiryAddForm(request.POST)
@@ -136,7 +141,7 @@ def edit_sales_enquiry(request, pk):
     page = request.GET.get('page', '1')
     sort_by = request.GET.get('sort_by', 'date')
     search_query = request.GET.get('search', '')
-    per_page = request.GET.get('per_page', '10')
+    per_page = request.GET.get('per_page', '100')  # Match main view default
 
     if request.method == 'POST':
         form = SalesEnquiryEditForm(request.POST, instance=enquiry)
@@ -231,7 +236,7 @@ def delete_sales_enquiry(request, pk):
     page = request.GET.get('page', '1')
     sort_by = request.GET.get('sort_by', 'date')
     search_query = request.GET.get('search', '')
-    per_page = request.GET.get('per_page', '10')
+    per_page = request.GET.get('per_page', '100')  # Match main view default
 
     if request.method == 'POST':
         enquiry.delete()
@@ -253,62 +258,82 @@ def delete_sales_enquiry(request, pk):
     return render(request, 'sales_enquiry_confirm_delete.html', context)
 
 
+@login_required
 @require_GET
 def sales_tracker_poll(request):
     """
     API endpoint for polling updates.
     Returns latest data timestamp and optionally full table HTML.
+    Detects: additions/edits (via timestamp) AND deletions (via count).
     """
     from .models import SalesEnquiry
 
-    # Get the latest update timestamp from the database
+    # Get filter parameters
+    search_query = request.GET.get('search', '')
+    sort_by = request.GET.get('sort_by', 'date')
+
+    # Match main view's per_page handling exactly
+    try:
+        per_page = int(request.GET.get('per_page', 100))
+        if per_page < 1:
+            per_page = 10
+        elif per_page > 100:
+            per_page = 100
+    except (ValueError, TypeError):
+        per_page = 100
+
+    page = request.GET.get('page', 1)
+
+    # Get latest_update from ALL records (same as main view)
     latest_update = SalesEnquiry.objects.aggregate(
         latest=Max('updated_at')
     )['latest']
 
-    # Get client's last known update time
-    client_last_update = request.GET.get('last_update', '')
+    # Build queryset with filters
+    enquiries = SalesEnquiry.objects.all()
 
-    # Check if there are new updates
+    if search_query:
+        enquiries = enquiries.filter(
+            Q(job_number__icontains=search_query) |
+            Q(location__icontains=search_query) |
+            Q(client__icontains=search_query)
+        )
+
+    # Get current count (filtered)
+    current_count = enquiries.count()
+
+    # Get client's last known values
+    client_last_update = request.GET.get('last_update', '')
+    client_last_count = request.GET.get('last_count', '')
+
+    # Check if there are new updates (timestamp changed OR count changed)
     has_updates = False
-    if latest_update:
-        latest_str = latest_update.isoformat()
-        if not client_last_update or client_last_update < latest_str:
+    latest_str = latest_update.isoformat() if latest_update else ''
+
+    # Check timestamp (detects adds and edits)
+    if latest_str and client_last_update:
+        if client_last_update < latest_str:
             has_updates = True
+
+    # Check count (detects deletions AND additions)
+    if client_last_count:
+        try:
+            if int(client_last_count) != current_count:
+                has_updates = True
+        except (ValueError, TypeError):
+            pass
 
     response_data = {
         'has_updates': has_updates,
-        'latest_update': latest_update.isoformat() if latest_update else None,
+        'latest_update': latest_str,
+        'current_count': current_count,
     }
 
     # If there are updates, include the updated data
     if has_updates:
-        # Get filter parameters (same as your main view)
-        year = request.GET.get('year')
-        month = request.GET.get('month')
-        status = request.GET.get('status')
-        search_query = request.GET.get('search', '')
-        sort_by = request.GET.get('sort_by', 'date')
-        per_page = request.GET.get('per_page', 100)
-        page = request.GET.get('page', 1)
-
-        # Convert per_page to int
-        try:
-            per_page = int(per_page)
-            if per_page not in [10, 25, 50, 100]:
-                per_page = 100
-        except (ValueError, TypeError):
-            per_page = 100
-
-        # Build queryset with filters
+        # Rebuild queryset fresh to ensure clean ordering
         enquiries = SalesEnquiry.objects.all()
 
-        if year:
-            enquiries = enquiries.filter(date__year=int(year))
-        if month:
-            enquiries = enquiries.filter(date__month=int(month))
-        if status:
-            enquiries = enquiries.filter(status=status)
         if search_query:
             enquiries = enquiries.filter(
                 Q(job_number__icontains=search_query) |
@@ -316,35 +341,28 @@ def sales_tracker_poll(request):
                 Q(client__icontains=search_query)
             )
 
-        # Sort
+        # Apply sorting - MUST match main view exactly
         if sort_by == 'job_number':
-            enquiries = list(enquiries)
+            # Convert to list first, then sort
+            enquiries_list = list(enquiries)
 
-            def sort_key(item):
-                job_num = item.job_number
+            def sort_key(enquiry):
+                job_num = enquiry.job_number
                 try:
                     if '.' in job_num:
                         parts = job_num.split('.')
-                        return (0, -int(parts[0]), -int(parts[1]))
+                        return (0, int(parts[0]), int(parts[1]))
                     else:
-                        return (0, -int(job_num), 0)
+                        return (0, int(job_num), 0)
                 except (ValueError, TypeError):
                     return (1, job_num, 0)
 
-            enquiries.sort(key=sort_key)
-        elif sort_by == 'value':
-            enquiries = enquiries.order_by('-value', '-date')
+            enquiries_list = sorted(enquiries_list, key=sort_key, reverse=True)
         else:
-            enquiries = enquiries.order_by('-date', '-created_at')
-
-        # Calculate totals BEFORE pagination
-        if not isinstance(enquiries, list):
-            enquiries_list = list(enquiries)
-        else:
-            enquiries_list = enquiries
+            # Sort by date - apply order_by then convert to list
+            enquiries_list = list(enquiries.order_by('-date', '-created_at'))
 
         total_value = sum(e.value for e in enquiries_list)
-        total_count = len(enquiries_list)
 
         # Apply pagination
         paginator = Paginator(enquiries_list, per_page)
@@ -355,12 +373,17 @@ def sales_tracker_poll(request):
         except EmptyPage:
             enquiries_page = paginator.page(paginator.num_pages)
 
-        # Render table body HTML (only the current page's rows)
+        # Render table body HTML
         response_data['table_html'] = render_to_string(
             'partials/table_body.html',
-            {'enquiries': enquiries_page}
+            {
+                'enquiries': enquiries_page,
+                'sort_by': sort_by,
+                'search_query': search_query,
+                'per_page': per_page,
+            }
         )
         response_data['total_value'] = float(total_value)
-        response_data['count'] = total_count
+        response_data['sort_by'] = sort_by  # For debugging
 
     return JsonResponse(response_data)

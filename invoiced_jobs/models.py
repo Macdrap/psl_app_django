@@ -9,6 +9,11 @@ class InvoicedJob(models.Model):
         ('Pending', 'Pending'),
         ('Invoiced', 'Invoiced'),
     ]
+    FOLLOW_STATUS = [
+        ("n_a", "N/A"),
+        ("to_follow", "To Follow"),
+        ("followed_up", "Followed Up"),
+    ]
 
     # Foreign key to MonthlyAward - REQUIRED (always linked)
     # Changed to allow MULTIPLE invoices per award
@@ -39,6 +44,10 @@ class InvoicedJob(models.Model):
 
     # Status
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Pending')
+
+    # Follow up
+    follow_up_status = models.CharField(max_length=20, choices=FOLLOW_STATUS, default="N/A")
+    followed_up_date = models.DateField(null=True, blank=True)
 
     # Metadata
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='invoiced_jobs')
