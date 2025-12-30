@@ -185,7 +185,7 @@ td {
     background: #86efac !important;  /* Darker green */
 }
 
-.row-status-rejected {
+.row-status-rejected, .row-status-not_quoted {
     background: #fca5a5 !important;  /* Red */
 }
 
@@ -507,6 +507,7 @@ td small {
                     <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
                     <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
                     <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                    <option value="200" {% if per_page == 200 %}selected{% endif %}>200</option>
                 </select>
                 <span style="font-size: 0.9rem; color: #6b7280;">entries</span>
                 <!-- Preserve other filters -->
@@ -529,7 +530,7 @@ td small {
                     name="search"
                     id="search"
                     class="search-input"
-                    placeholder="By Job number, Location, Client."
+                    placeholder="By Job number, Location, Client, Contact."
                     value="{{ search_query }}"
                 >
                 <button type="submit" class="btn-search">Search</button>
@@ -592,6 +593,7 @@ td small {
                 <th>Value</th>
                 <th>Status</th>
                 <th>Notes</th>
+                <th>Feedback</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -607,7 +609,7 @@ td small {
                 <td>{{ enquiry.location|truncatewords:10 }}</td>
                 <td>£{{ enquiry.value|floatformat:2 }}</td>
                 <td>
-                    <strong>{{ enquiry.status }}</strong>
+                    <strong>{{ enquiry.get_status_display }}</strong>
                 </td>
                 <td>
                     {% if enquiry.note %}
@@ -617,9 +619,16 @@ td small {
                     {% endif %}
                 </td>
                 <td>
+                    {% if enquiry.feedback %}
+                        <span title="{{ enquiry.feedback }}">{{ enquiry.feedback|truncatewords:8 }}</span>
+                    {% else %}
+                        <span style="color: #d1d5db; font-style: italic;">-</span>
+                    {% endif %}
+                </td>
+                <td>
                     <div class="action-buttons">
-                        <a href="{% url 'edit_sales_enquiry' enquiry.pk %}?page={{ enquiries.number }}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-small btn-edit">Edit</a>
-                        <a href="{% url 'delete_sales_enquiry' enquiry.pk %}?page={{ enquiries.number }}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-small btn-delete">Delete</a>
+                        <a href="{% url 'edit_sales_enquiry' enquiry.pk %}?page={{ enquiries.number }}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}&scroll=SCROLL_PLACEHOLDER" class="btn btn-small btn-edit" data-scroll-link>Edit</a>
+                        <a href="{% url 'delete_sales_enquiry' enquiry.pk %}?page={{ enquiries.number }}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}&scroll=SCROLL_PLACEHOLDER" class="btn btn-small btn-delete" data-scroll-link>Delete</a>
                     </div>
                 </td>
             </tr>
@@ -654,6 +663,59 @@ td small {
 <script>
 (function() {
     // =============================================
+    // SCROLL POSITION MANAGEMENT
+    // =============================================
+    function updateScrollLinks() {
+        const currentScroll = Math.round(window.scrollY);
+        document.querySelectorAll('[data-scroll-link]').forEach(link => {
+            const href = link.getAttribute('href');
+            if (href) {
+                const url = new URL(href, window.location.origin);
+                url.searchParams.set('scroll', currentScroll);
+                link.setAttribute('href', url.toString());
+            }
+        });
+    }
+
+function restoreScrollFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const scrollPos = urlParams.get('scroll');
+
+    if (scrollPos && scrollPos !== '0') {
+        // Immediately scroll without animation BEFORE page is visible
+        window.scrollTo(0, parseInt(scrollPos, 10));
+
+        // Clean up URL after a short delay
+        setTimeout(() => {
+            urlParams.delete('scroll');
+            const newUrl = window.location.pathname +
+                (urlParams.toString() ? '?' + urlParams.toString() : '');
+            window.history.replaceState({}, '', newUrl);
+        }, 50);
+    }
+}
+
+// Call restore function IMMEDIATELY, not after DOM load
+restoreScrollFromURL();
+
+    // Update links initially
+    updateScrollLinks();
+
+    // Update links on scroll (debounced)
+    let scrollTimeout;
+    window.addEventListener('scroll', function() {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(updateScrollLinks, 100);
+    });
+
+    // Restore scroll position on page load
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', restoreScrollFromURL);
+    } else {
+        restoreScrollFromURL();
+    }
+
+    // =============================================
     // ROW SELECTION (using event delegation)
     // =============================================
     const tbody = document.querySelector('tbody');
@@ -663,12 +725,10 @@ td small {
 
     let lastSelectedIndex = null;
 
-    // Get all current rows (fresh query each time)
     function getRows() {
         return Array.from(document.querySelectorAll('tbody tr'));
     }
 
-    // Get value from row (5th column - Value)
     function getRowValue(row) {
         const valueCell = row.querySelector('td:nth-child(5)');
         if (valueCell) {
@@ -678,7 +738,6 @@ td small {
         return 0;
     }
 
-    // Update the selection helper
     function updateHelper() {
         const selectedRows = document.querySelectorAll('tbody tr.selected');
         const count = selectedRows.length;
@@ -702,7 +761,6 @@ td small {
         helper.classList.add('visible');
     }
 
-    // Clear all selections
     window.clearSelection = function() {
         document.querySelectorAll('tbody tr.selected').forEach(row => {
             row.classList.remove('selected');
@@ -711,10 +769,8 @@ td small {
         updateHelper();
     };
 
-    // Event delegation - handle clicks on tbody
     if (tbody) {
         tbody.addEventListener('click', function(e) {
-            // Ignore if clicking on a link or button
             if (e.target.closest('a, button')) {
                 return;
             }
@@ -727,25 +783,20 @@ td small {
             if (index === -1) return;
 
             if (e.shiftKey && lastSelectedIndex !== null) {
-                // Shift+Click: Select range
                 const start = Math.min(lastSelectedIndex, index);
                 const end = Math.max(lastSelectedIndex, index);
 
-                // If not holding Ctrl, clear previous selection
                 if (!e.ctrlKey && !e.metaKey) {
                     rows.forEach(r => r.classList.remove('selected'));
                 }
 
-                // Select range
                 for (let i = start; i <= end; i++) {
                     rows[i].classList.add('selected');
                 }
             } else if (e.ctrlKey || e.metaKey) {
-                // Ctrl+Click: Toggle individual row
                 row.classList.toggle('selected');
                 lastSelectedIndex = index;
             } else {
-                // Regular click: Select only this row
                 rows.forEach(r => r.classList.remove('selected'));
                 row.classList.add('selected');
                 lastSelectedIndex = index;
@@ -755,7 +806,6 @@ td small {
         });
     }
 
-    // Escape key to clear selection
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             clearSelection();
@@ -765,29 +815,24 @@ td small {
     // =============================================
     // POLLING FOR REAL-TIME UPDATES
     // =============================================
-    const POLL_INTERVAL = 3000; // 3 seconds
+    const POLL_INTERVAL = 3000;
     const POLL_URL = '{% url "sales_tracker_poll" %}';
 
-    // Initialize with server's values to prevent flash on page load
     let lastUpdate = '{{ latest_update|default:"" }}';
     let lastCount = '{{ total_count|default:"" }}';
     let isPolling = true;
-    let isFirstPoll = true;  // Skip first poll to prevent race condition after redirect
+    let isFirstPoll = true;
 
-    // Get current filter params from URL
     function getFilterParams() {
         const urlParams = new URLSearchParams(window.location.search);
         const params = new URLSearchParams();
 
-        // Get per_page from the select element (more reliable than URL)
         const perPageSelect = document.querySelector('select[name="per_page"]');
         const perPageValue = perPageSelect ? perPageSelect.value : (urlParams.get('per_page') || '100');
         params.set('per_page', perPageValue);
 
-        // Always send sort_by - default to 'date' if not in URL
         params.set('sort_by', urlParams.get('sort_by') || 'date');
 
-        // Pass other filter params
         ['year', 'month', 'status', 'search', 'page'].forEach(key => {
             if (urlParams.has(key)) {
                 params.set(key, urlParams.get(key));
@@ -804,19 +849,15 @@ td small {
         return params.toString();
     }
 
-    // Update the table with new data
     function updateTable(data) {
         if (data.has_updates && data.table_html) {
             const tbody = document.querySelector('table tbody');
             if (tbody) {
-                // Store selected row IDs before update
                 const selectedIds = Array.from(document.querySelectorAll('tbody tr.selected'))
                     .map(row => row.dataset.enquiryId);
 
-                // Update table content
                 tbody.innerHTML = data.table_html;
 
-                // Re-apply selection to rows that still exist
                 selectedIds.forEach(id => {
                     const row = document.querySelector(`tbody tr[data-enquiry-id="${id}"]`);
                     if (row) {
@@ -824,38 +865,12 @@ td small {
                     }
                 });
 
-                // Reset lastSelectedIndex since rows may have changed
                 lastSelectedIndex = null;
-
-                // Update the selection helper (in case selected rows were deleted)
                 updateHelper();
-
-                // Fix action links to include current filter params
                 fixActionLinks();
-
-                // Update totals if provided
-                if (data.total_value !== undefined) {
-                    const totalEl = document.querySelector('.summary-card h2');
-                    if (totalEl) {
-                        totalEl.textContent = '£' + data.total_value.toLocaleString('en-GB', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        });
-                    }
-                }
-
-                if (data.current_count !== undefined) {
-                    const countEl = document.querySelector('.summary-card p');
-                    if (countEl) {
-                        const text = countEl.textContent;
-                        countEl.textContent = text.replace(/\d+ enquir(y|ies)/,
-                            data.current_count + ' enquir' + (data.current_count === 1 ? 'y' : 'ies'));
-                    }
-                }
             }
         }
 
-        // Update last known timestamp and count
         if (data.latest_update) {
             lastUpdate = data.latest_update;
         }
@@ -864,48 +879,36 @@ td small {
         }
     }
 
-    // Fix action links to include current URL params after polling update
     function fixActionLinks() {
         const currentParams = new URLSearchParams(window.location.search);
+        const currentScroll = Math.round(window.scrollY);
 
-        // Get per_page from the select element (more reliable than URL)
         const perPageSelect = document.querySelector('select[name="per_page"]');
         const perPageValue = perPageSelect ? perPageSelect.value : (currentParams.get('per_page') || '100');
-
-        // Get sort_by from URL or default
         const sortByValue = currentParams.get('sort_by') || 'date';
 
-        // Build query string
-        const queryParts = [];
-
-        // Always include these
-        queryParts.push(`per_page=${encodeURIComponent(perPageValue)}`);
-        queryParts.push(`sort_by=${encodeURIComponent(sortByValue)}`);
-
-        // Include page if present
-        if (currentParams.has('page')) {
-            queryParts.push(`page=${encodeURIComponent(currentParams.get('page'))}`);
-        }
-
-        // Include search if present
-        if (currentParams.has('search')) {
-            queryParts.push(`search=${encodeURIComponent(currentParams.get('search'))}`);
-        }
-
-        const queryString = '?' + queryParts.join('&');
-
-        // Update all action links in the table
         document.querySelectorAll('tbody .action-buttons a').forEach(link => {
             const href = link.getAttribute('href');
             if (href) {
-                // Remove existing query params and add new ones
-                const baseUrl = href.split('?')[0];
-                link.setAttribute('href', baseUrl + queryString);
+                const url = new URL(href.split('?')[0], window.location.origin);
+                const urlParams = new URLSearchParams(href.split('?')[1] || '');
+
+                urlParams.set('per_page', perPageValue);
+                urlParams.set('sort_by', sortByValue);
+                urlParams.set('scroll', currentScroll);
+
+                if (currentParams.has('page')) {
+                    urlParams.set('page', currentParams.get('page'));
+                }
+                if (currentParams.has('search')) {
+                    urlParams.set('search', currentParams.get('search'));
+                }
+
+                link.setAttribute('href', url.pathname + '?' + urlParams.toString());
             }
         });
     }
 
-    // Poll for updates
     async function poll() {
         if (!isPolling) return;
 
@@ -914,8 +917,6 @@ td small {
             if (response.ok) {
                 const data = await response.json();
 
-                // On first poll, just sync the values without updating table
-                // This prevents flash/reorder right after page load
                 if (isFirstPoll) {
                     if (data.latest_update) {
                         lastUpdate = data.latest_update;
@@ -925,7 +926,6 @@ td small {
                     }
                     isFirstPoll = false;
                 } else {
-                    // On subsequent polls, update table if needed
                     updateTable(data);
                 }
             }
@@ -933,34 +933,29 @@ td small {
             console.error('Polling error:', error);
         }
 
-        // Schedule next poll
         setTimeout(poll, POLL_INTERVAL);
     }
 
-    // Start polling when page loads
     poll();
 
-    // Pause polling when tab is not visible (save resources)
     document.addEventListener('visibilitychange', function() {
         isPolling = !document.hidden;
         if (isPolling) {
-            poll(); // Resume immediately when tab becomes visible
+            poll();
         }
     });
 
-    // Expose control functions globally
     window.salesTrackerPolling = {
         pause: () => { isPolling = false; },
         resume: () => { isPolling = true; poll(); },
         refresh: () => {
             lastUpdate = '';
             lastCount = '';
-            isFirstPoll = false;  // Force update on manual refresh
+            isFirstPoll = false;
             poll();
         }
     };
 
-    // Pause polling when user clicks any link (prevents race conditions during navigation)
     document.addEventListener('click', function(e) {
         const link = e.target.closest('a');
         if (link && link.href && !link.href.startsWith('javascript:')) {
@@ -968,10 +963,10 @@ td small {
         }
     });
 
-    // Also pause on form submission
     document.addEventListener('submit', function() {
         isPolling = false;
     });
 })();
 </script>
+
 {% endblock %}

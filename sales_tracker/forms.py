@@ -68,7 +68,7 @@ class SalesEnquiryEditForm(forms.ModelForm):
     class Meta:
         model = SalesEnquiry
         fields = ['job_number', 'date', 'value', 'location', 'client',
-                  'client_contact', 'email', 'phone', 'status', 'note']
+                  'client_contact', 'email', 'phone', 'status', 'note', 'feedback','other_feedback']
         widgets = {
             'job_number': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -86,6 +86,15 @@ class SalesEnquiryEditForm(forms.ModelForm):
             'note': forms.Textarea(attrs={
                 'class': 'form-input',
                 'placeholder': 'Enter notes (optional)',
+                'rows': 1
+            }),
+            'feedback': forms.Select(attrs={
+                'class': 'form-input',
+                'placeholder': 'Enter feedback (optional)',
+            }),
+            'other_feedback': forms.Textarea(attrs={
+                'class': 'form-input',
+                'placeholder': 'Enter Other Feedback',
                 'rows': 1
             }),
             'location': forms.Textarea(attrs={
@@ -124,3 +133,4 @@ class SalesEnquiryEditForm(forms.ModelForm):
         self.fields['email'].required = False
         self.fields['phone'].required = False
         self.fields['note'].required = False
+        self.fields['feedback'].required = False

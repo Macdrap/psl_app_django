@@ -17,12 +17,19 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            padding-top: 70px; /* Add space for fixed navbar */
         }
 
         nav {
             background: rgba(255, 255, 255, 0.95);
             padding: 1rem 2rem;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: fixed; /* Fixed position */
+            top: 0; /* Stick to top */
+            left: 0; /* Stick to left */
+            right: 0; /* Stick to right */
+            z-index: 1000; /* Ensure it stays on top of other content */
+            backdrop-filter: blur(10px); /* Optional: adds blur effect */
         }
 
         nav .nav-content {
@@ -38,26 +45,33 @@
             font-size: 1.5rem;
         }
 
-        nav .nav-links a {
+        nav .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        nav .nav-links a,
+        nav .nav-links .nav-logout {
             color: #333;
             text-decoration: none;
-            margin-left: 1.5rem;
             font-weight: 500;
             transition: color 0.3s;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-family: inherit;
+            padding: 0;
         }
 
-        nav .nav-links a:hover {
+        nav .nav-links a:hover,
+        nav .nav-links .nav-logout:hover {
             color: rgb(88,70,164);
-        }
-
-        button:hover {
-            color: rgb(88,70,164);
-            transition: color 0.3s;
         }
 
         .container {
             flex: 1;
-            max-width: 1200px;
             margin: 0 auto;
             padding: 2rem;
             width: 100%;
@@ -89,26 +103,36 @@
             color: #1e40af;
         }
 
-    nav .nav-links a,
-    nav .nav-links .nav-logout {
-        color: #333;
-        text-decoration: none;
-        margin-left: 1.5rem;
-        font-weight: 500;
-        transition: color 0.3s;
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 1rem;
-        font-family: inherit;
-        padding: 0;
-    }
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            body {
+                padding-top: 60px; /* Adjust for smaller navbar on mobile */
+            }
 
-    nav .nav-links a:hover,
-    nav .nav-links .nav-logout:hover {
-        color: rgb(88,70,164);
-    }
+            nav {
+                padding: 0.75rem 1rem;
+            }
 
+            nav h1 {
+                font-size: 1.2rem;
+            }
+
+            nav .nav-content {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            nav .nav-links {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0.75rem;
+            }
+
+            nav .nav-links a,
+            nav .nav-links .nav-logout {
+                font-size: 0.9rem;
+            }
+        }
     </style>
 </head>
 <body>

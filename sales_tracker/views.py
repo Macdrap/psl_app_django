@@ -10,6 +10,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 from django.template.loader import render_to_string
 from django.db.models import Q, Max
+from datetime import datetime
 
 
 @login_required
@@ -24,7 +25,8 @@ def sales_tracker(request):
         enquiries = enquiries.filter(
             Q(job_number__icontains=search_query) |
             Q(location__icontains=search_query) |
-            Q(client__icontains=search_query)
+            Q(client__icontains=search_query) |
+            Q(client_contact__icontains=search_query)
         )
 
     # Sort by filter
@@ -51,14 +53,14 @@ def sales_tracker(request):
     # Get current page and per_page values
     current_page = request.GET.get('page', 1)
 
-    # Get per_page value from request, default to 10
+    # Get per_page value from request, default to 100
     try:
         per_page = int(request.GET.get('per_page', 100))
         # Limit to reasonable values
         if per_page < 1:
             per_page = 10
-        elif per_page > 100:
-            per_page = 100
+        elif per_page > 200:
+            per_page = 200
     except (ValueError, TypeError):
         per_page = 10
 
@@ -101,7 +103,8 @@ def add_sales_enquiry(request):
     page = request.GET.get('page', '1')
     sort_by = request.GET.get('sort_by', 'date')
     search_query = request.GET.get('search', '')
-    per_page = request.GET.get('per_page', '100')  # Match main view default
+    per_page = request.GET.get('per_page', '100')
+    scroll_pos = request.GET.get('scroll', '0')  # Get scroll position
 
     if request.method == 'POST':
         form = SalesEnquiryAddForm(request.POST)
@@ -110,8 +113,13 @@ def add_sales_enquiry(request):
             enquiry.created_by = request.user
             enquiry.save()
             messages.success(request, 'Sales enquiry added successfully!')
-            # Redirect back to the same page with filters
-            params = {'page': page, 'sort_by': sort_by, 'per_page': per_page}
+            # Redirect back to the same page with filters and scroll
+            params = {
+                'page': page,
+                'sort_by': sort_by,
+                'per_page': per_page,
+                'scroll': scroll_pos
+            }
             if search_query:
                 params['search'] = search_query
             redirect_url = f"{reverse('sales_tracker')}?{urlencode(params)}"
@@ -127,6 +135,7 @@ def add_sales_enquiry(request):
         'sort_by': sort_by,
         'search_query': search_query,
         'per_page': per_page,
+        'scroll_pos': scroll_pos,
     }
     return render(request, 'sales_enquiry_form.html', context)
 
@@ -141,7 +150,21 @@ def edit_sales_enquiry(request, pk):
     page = request.GET.get('page', '1')
     sort_by = request.GET.get('sort_by', 'date')
     search_query = request.GET.get('search', '')
-    per_page = request.GET.get('per_page', '100')  # Match main view default
+    per_page = request.GET.get('per_page', '100')
+    scroll_pos = request.GET.get('scroll', '0')  # Get scroll position
+
+    # Get existing invoice data if job is already awarded
+    existing_invoice = None
+    if enquiry.status == 'Awarded':
+        from monthly_awards.models import MonthlyAward
+        from invoiced_jobs.models import InvoicedJob
+
+        try:
+            award = MonthlyAward.objects.filter(sale=enquiry).first()
+            if award:
+                existing_invoice = InvoicedJob.objects.filter(award=award).first()
+        except:
+            pass
 
     if request.method == 'POST':
         form = SalesEnquiryEditForm(request.POST, instance=enquiry)
@@ -151,8 +174,9 @@ def edit_sales_enquiry(request, pk):
             from monthly_awards.models import MonthlyAward
             from invoiced_jobs.models import InvoicedJob
             from django.utils import timezone
+            from decimal import Decimal
 
-            # If status changed to "Awarded", create Monthly Award AND auto-create invoice
+            # If status changed to "Awarded", create Monthly Award AND invoice with custom values
             if old_status != 'Awarded' and updated_enquiry.status == 'Awarded':
                 award = MonthlyAward.objects.create(
                     sale=updated_enquiry,
@@ -167,19 +191,59 @@ def edit_sales_enquiry(request, pk):
                     created_by=request.user
                 )
 
-                # ✅ AUTO-CREATE invoice only for sales tracker awards
+                # Get invoice data from POST request
+                invoice_date_str = request.POST.get('invoice_date', '')
+                utility_value = request.POST.get('invoice_utility_value', '0')
+                cad_value = request.POST.get('invoice_cad_value', '0')
+                topo_value = request.POST.get('invoice_topo_value', '0')
+                contractor_value = request.POST.get('invoice_contractor_value', '0')
+
+                # Parse invoice date
+                if invoice_date_str:
+                    try:
+                        invoice_date = datetime.strptime(invoice_date_str, '%Y-%m-%d').date()
+                    except ValueError:
+                        invoice_date = timezone.now().date()
+                else:
+                    invoice_date = timezone.now().date()
+
+                # Convert values to Decimal
+                try:
+                    utility_value = Decimal(utility_value)
+                except (ValueError, TypeError):
+                    utility_value = Decimal('0')
+
+                try:
+                    cad_value = Decimal(cad_value)
+                except (ValueError, TypeError):
+                    cad_value = Decimal('0')
+
+                try:
+                    topo_value = Decimal(topo_value)
+                except (ValueError, TypeError):
+                    topo_value = Decimal('0')
+
+                try:
+                    contractor_value = Decimal(contractor_value)
+                except (ValueError, TypeError):
+                    contractor_value = Decimal('0')
+
+                # Create invoice with specified values
                 InvoicedJob.objects.create(
                     award=award,
-                    date=timezone.now().date(),
-                    utility_value=0,
-                    cad_value=0,
-                    topo_value=0,
-                    contractor_value=0,
+                    date=invoice_date,
+                    utility_value=utility_value,
+                    cad_value=cad_value,
+                    topo_value=topo_value,
+                    contractor_value=contractor_value,
                     status='Pending',
                     created_by=request.user
                 )
 
-                messages.success(request, 'Sales enquiry awarded! Monthly award and invoice created automatically.')
+                messages.success(
+                    request,
+                    f'Sales enquiry awarded! Monthly award and invoice created for {invoice_date.strftime("%d %b %Y")}.'
+                )
 
             # If status changed FROM "Awarded", delete linked awards (cascade deletes invoices)
             elif old_status == 'Awarded' and updated_enquiry.status != 'Awarded':
@@ -190,8 +254,9 @@ def edit_sales_enquiry(request, pk):
                 else:
                     messages.success(request, 'Sales enquiry updated successfully!')
 
-            # If status is still "Awarded", update linked awards
+            # If status is still "Awarded", update linked awards AND invoice
             elif updated_enquiry.status == 'Awarded':
+                # Update awards
                 MonthlyAward.objects.filter(sale=updated_enquiry).update(
                     job_number=updated_enquiry.job_number,
                     location=updated_enquiry.location,
@@ -201,12 +266,70 @@ def edit_sales_enquiry(request, pk):
                     phone=updated_enquiry.phone,
                     value=updated_enquiry.value
                 )
-                messages.success(request, 'Sales enquiry and linked awards updated successfully!')
+
+                # Update invoice if invoice data was provided
+                invoice_date_str = request.POST.get('invoice_date', '')
+                utility_value = request.POST.get('invoice_utility_value', '')
+                cad_value = request.POST.get('invoice_cad_value', '')
+                topo_value = request.POST.get('invoice_topo_value', '')
+                contractor_value = request.POST.get('invoice_contractor_value', '')
+
+                # If invoice data is present, update the invoice
+                if invoice_date_str or utility_value or cad_value or topo_value or contractor_value:
+                    award = MonthlyAward.objects.filter(sale=updated_enquiry).first()
+                    if award:
+                        invoice = InvoicedJob.objects.filter(award=award).first()
+                        if invoice:
+                            # Parse invoice date
+                            if invoice_date_str:
+                                try:
+                                    invoice.date = datetime.strptime(invoice_date_str, '%Y-%m-%d').date()
+                                except ValueError:
+                                    pass
+
+                            # Update values
+                            if utility_value:
+                                try:
+                                    invoice.utility_value = Decimal(utility_value)
+                                except (ValueError, TypeError):
+                                    pass
+
+                            if cad_value:
+                                try:
+                                    invoice.cad_value = Decimal(cad_value)
+                                except (ValueError, TypeError):
+                                    pass
+
+                            if topo_value:
+                                try:
+                                    invoice.topo_value = Decimal(topo_value)
+                                except (ValueError, TypeError):
+                                    pass
+
+                            if contractor_value:
+                                try:
+                                    invoice.contractor_value = Decimal(contractor_value)
+                                except (ValueError, TypeError):
+                                    pass
+
+                            invoice.save()
+                            messages.success(request, 'Sales enquiry, linked awards, and invoice updated successfully!')
+                        else:
+                            messages.success(request, 'Sales enquiry and linked awards updated successfully!')
+                    else:
+                        messages.success(request, 'Sales enquiry updated successfully!')
+                else:
+                    messages.success(request, 'Sales enquiry and linked awards updated successfully!')
             else:
                 messages.success(request, 'Sales enquiry updated successfully!')
 
-            # Redirect back to the same page with filters
-            params = {'page': page, 'sort_by': sort_by, 'per_page': per_page}
+            # Redirect back to the same page with filters and scroll
+            params = {
+                'page': page,
+                'sort_by': sort_by,
+                'per_page': per_page,
+                'scroll': scroll_pos
+            }
             if search_query:
                 params['search'] = search_query
             redirect_url = f"{reverse('sales_tracker')}?{urlencode(params)}"
@@ -223,6 +346,8 @@ def edit_sales_enquiry(request, pk):
         'sort_by': sort_by,
         'search_query': search_query,
         'per_page': per_page,
+        'scroll_pos': scroll_pos,
+        'existing_invoice': existing_invoice,
     }
     return render(request, 'sales_enquiry_form.html', context)
 
@@ -236,13 +361,19 @@ def delete_sales_enquiry(request, pk):
     page = request.GET.get('page', '1')
     sort_by = request.GET.get('sort_by', 'date')
     search_query = request.GET.get('search', '')
-    per_page = request.GET.get('per_page', '100')  # Match main view default
+    per_page = request.GET.get('per_page', '100')
+    scroll_pos = request.GET.get('scroll', '0')  # Get scroll position
 
     if request.method == 'POST':
         enquiry.delete()
         messages.success(request, 'Sales enquiry deleted successfully!')
-        # Redirect back to the same page with filters
-        params = {'page': page, 'sort_by': sort_by, 'per_page': per_page}
+        # Redirect back to the same page with filters and scroll
+        params = {
+            'page': page,
+            'sort_by': sort_by,
+            'per_page': per_page,
+            'scroll': scroll_pos
+        }
         if search_query:
             params['search'] = search_query
         redirect_url = f"{reverse('sales_tracker')}?{urlencode(params)}"
@@ -254,6 +385,7 @@ def delete_sales_enquiry(request, pk):
         'sort_by': sort_by,
         'search_query': search_query,
         'per_page': per_page,
+        'scroll_pos': scroll_pos,
     }
     return render(request, 'sales_enquiry_confirm_delete.html', context)
 
@@ -338,7 +470,8 @@ def sales_tracker_poll(request):
             enquiries = enquiries.filter(
                 Q(job_number__icontains=search_query) |
                 Q(location__icontains=search_query) |
-                Q(client__icontains=search_query)
+                Q(client__icontains=search_query) |
+                Q(client_contact__icontains=search_query)
             )
 
         # Apply sorting - MUST match main view exactly

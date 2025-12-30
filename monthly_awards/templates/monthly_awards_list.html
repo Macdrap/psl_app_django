@@ -573,7 +573,7 @@
             <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
         </select>
         <label for="search">Search:</label>
-        <input type="text" name="search" id="search" class="search-input" placeholder="By Job Number, Location, Client." value="{{ search_query }}">
+        <input type="text" name="search" id="search" class="search-input" placeholder="By Job Number, Location, Client, Contact." value="{{ search_query }}">
         <button type="submit" class="btn-search">Search</button>
         {% if search_query %}
             <a href="{% url 'monthly_awards_list' %}?year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&per_page={{ per_page }}" class="btn-clear-search">Clear</a>

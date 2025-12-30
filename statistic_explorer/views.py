@@ -116,6 +116,39 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
             else:
                 sales_data[key]['percentage'] = 0
 
+        # Aggregate feedback data
+        feedback_stats = enquiries.exclude(
+            Q(feedback__isnull=True) | Q(feedback='')
+        ).values('feedback').annotate(
+            count=Count('id')
+        )
+
+        # Initialize feedback counters
+        feedback_data = {
+            'timeframe': {'count': 0},
+            'price': {'count': 0},
+            'capability': {'count': 0},
+            'other': {'count': 0},
+        }
+
+        # Populate from query results
+        for stat in feedback_stats:
+            feedback_key = stat['feedback'].lower()
+            if feedback_key in feedback_data:
+                feedback_data[feedback_key]['count'] = stat['count']
+
+        # Calculate feedback totals
+        feedback_total_count = sum(d['count'] for d in feedback_data.values())
+
+        # Calculate feedback percentages
+        for key in feedback_data:
+            if feedback_total_count > 0:
+                feedback_data[key]['percentage'] = round(
+                    (feedback_data[key]['count'] / feedback_total_count) * 100, 1
+                )
+            else:
+                feedback_data[key]['percentage'] = 0
+
         # Generate year range for dropdown
         year_range = range(2020, current_year + 2)
 
@@ -141,6 +174,10 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
             'sales_total_count': total_count,
             'sales_total_value': total_value,
 
+            # Feedback data for chart
+            'feedback_data': feedback_data,
+            'feedback_total_count': feedback_total_count,
+
             # Chart data as JSON-ready values
             'chart_labels': ['Awarded', 'Rejected', 'Pending'],
             'chart_values': [
@@ -162,6 +199,10 @@ class StatisticExplorerPDFView(LoginRequiredMixin, TemplateView):
         explorer_view = StatisticExplorerView()
         explorer_view.request = request
         context = explorer_view.get_context_data()
+
+        # Get section toggles from query params
+        context['show_sales_status'] = request.GET.get('show_sales_status', 'true') == 'true'
+        context['show_feedback'] = request.GET.get('show_feedback', 'true') == 'true'
 
         # Render PDF template
         html_string = render_to_string('statistic_explorer_pdf.html', context)

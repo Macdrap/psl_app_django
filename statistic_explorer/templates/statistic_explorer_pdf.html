@@ -52,6 +52,7 @@
 
         .section {
             margin-bottom: 30px;
+            page-break-inside: avoid;
         }
 
         .section-title {
@@ -97,6 +98,9 @@
         .stat-card .value.green { color: #10b981; }
         .stat-card .value.red { color: #ef4444; }
         .stat-card .value.amber { color: #f59e0b; }
+        .stat-card .value.blue { color: #3b82f6; }
+        .stat-card .value.pink { color: #ec4899; }
+        .stat-card .value.purple { color: #8b5cf6; }
 
         .breakdown-table {
             width: 100%;
@@ -124,6 +128,10 @@
         .breakdown-table .status-awarded { color: #10b981; font-weight: 600; }
         .breakdown-table .status-rejected { color: #ef4444; font-weight: 600; }
         .breakdown-table .status-pending { color: #f59e0b; font-weight: 600; }
+        .breakdown-table .status-timeframe { color: #3b82f6; font-weight: 600; }
+        .breakdown-table .status-price { color: #ec4899; font-weight: 600; }
+        .breakdown-table .status-capability { color: #8b5cf6; font-weight: 600; }
+        .breakdown-table .status-other { color: #6b7280; font-weight: 600; }
 
         .breakdown-table tfoot td {
             background: #f3f4f6;
@@ -142,6 +150,10 @@
         .color-awarded { background: #10b981; }
         .color-rejected { background: #ef4444; }
         .color-pending { background: #f59e0b; }
+        .color-timeframe { background: #3b82f6; }
+        .color-price { background: #ec4899; }
+        .color-capability { background: #8b5cf6; }
+        .color-other { background: #6b7280; }
 
         .footer {
             margin-top: 40px;
@@ -185,6 +197,7 @@
         <div class="filter-badge">{{ filter_description }}</div>
     </div>
 
+    {% if show_sales_status %}
     <!-- Summary Stats -->
     <div class="section">
         <div class="section-title">Summary Overview</div>
@@ -261,6 +274,64 @@
             </tfoot>
         </table>
     </div>
+    {% endif %}
+
+    {% if show_feedback %}
+    <!-- Feedback Analysis -->
+    <div class="section">
+        <div class="section-title">Feedback Analysis</div>
+        <table class="breakdown-table">
+            <thead>
+                <tr>
+                    <th>Feedback Type</th>
+                    <th>Count</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <span class="color-indicator color-timeframe"></span>
+                        <span class="status-timeframe">Timeframe</span>
+                    </td>
+                    <td>{{ feedback_data.timeframe.count }}</td>
+                    <td>{{ feedback_data.timeframe.percentage }}%</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="color-indicator color-price"></span>
+                        <span class="status-price">Price</span>
+                    </td>
+                    <td>{{ feedback_data.price.count }}</td>
+                    <td>{{ feedback_data.price.percentage }}%</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="color-indicator color-capability"></span>
+                        <span class="status-capability">Capability</span>
+                    </td>
+                    <td>{{ feedback_data.capability.count }}</td>
+                    <td>{{ feedback_data.capability.percentage }}%</td>
+                </tr>
+                <tr>
+                    <td>
+                        <span class="color-indicator color-other"></span>
+                        <span class="status-other">Other</span>
+                    </td>
+                    <td>{{ feedback_data.other.count }}</td>
+                    <td>{{ feedback_data.other.percentage }}%</td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td><strong>Total</strong></td>
+                    <td><strong>{{ feedback_total_count }}</strong></td>
+                    <td><strong>100%</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% endif %}
 
     <div class="footer">
         <p>Generated on {% now "d F Y \a\t H:i" %}</p>

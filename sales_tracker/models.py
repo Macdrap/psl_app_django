@@ -8,12 +8,22 @@ class SalesEnquiry(models.Model):
         ('Pending', 'Pending'),
         ('Rejected', 'Rejected'),
         ('Awarded', 'Awarded'),
+        ('Not_Quoted', 'Not Quoted')
+    ]
+
+    FEEDBACK_CHOICES = [
+        ('Price', 'Price'),
+        ('Timeframe', 'Timeframe'),
+        ('Capability', 'Capability'),
+        ('Other', 'Other')
     ]
 
     job_number = models.CharField(max_length=20)
     date = models.DateField(default=timezone.now)
     value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     note = models.TextField(blank=True, null=True)
+    feedback = models.CharField(blank=True, null=True, choices=FEEDBACK_CHOICES, default='')
+    other_feedback = models.TextField(blank=True, null=True)
     location = models.TextField()
     client = models.CharField(max_length=255)
     client_contact = models.CharField(max_length=255)

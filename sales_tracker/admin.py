@@ -10,6 +10,9 @@ class SalesEnquiryAdmin(admin.ModelAdmin):
         'client',
         'client_contact',
         'value',
+        'note',
+        'feedback',
+        'other_feedback',
         'status',
         'created_by',
         'created_at'
@@ -50,6 +53,9 @@ class SalesEnquiryAdmin(admin.ModelAdmin):
         }),
         ('Location', {
             'fields': ('location',)
+        }),
+        ('Optional', {
+            'fields': ('note','feedback','other_feedback')
         }),
         ('Metadata', {
             'fields': ('created_by', 'created_at', 'updated_at'),

@@ -12,45 +12,49 @@
         border-radius: 12px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
-    
-    .form-header {
+
+    .form-header, .form-sub-header {
         margin-bottom: 2rem;
         padding-bottom: 1rem;
         border-bottom: 2px solid #e5e7eb;
     }
-    
-    .form-header h1 {
+
+    .form-header h1, h2 {
         color: #1f2937;
         margin-bottom: 0.5rem;
     }
-    
+
+    .form-sub-header h2 {
+        text-align: center;
+    }
+
     .form-header p {
         color: #6b7280;
     }
-    
+
     .form-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 1.5rem;
         margin-bottom: 1.5rem;
     }
-    
+
     .form-grid.full-width {
         grid-template-columns: 1fr;
     }
-    
+
     .form-group {
         display: flex;
         flex-direction: column;
     }
-    
+
     .form-group label {
         margin-bottom: 0.5rem;
         color: #374151;
         font-weight: 600;
         font-size: 0.95rem;
     }
-    
+
     .form-input {
         width: 100%;
         padding: 0.75rem;
@@ -60,18 +64,18 @@
         transition: all 0.3s;
         font-family: inherit;
     }
-    
+
     .form-input:focus {
         outline: none;
         border-color: rgb(88,70,164);
         box-shadow: 0 0 0 3px rgba(88,70,164, 0.1);
     }
-    
+
     textarea.form-input {
         resize: vertical;
         min-height: 100px;
     }
-    
+
     .error-message {
         background: #fef2f2;
         border: 1px solid #fecaca;
@@ -81,7 +85,7 @@
         margin-top: 0.5rem;
         font-size: 0.9rem;
     }
-    
+
     .form-actions {
         display: flex;
         gap: 1rem;
@@ -89,7 +93,7 @@
         padding-top: 2rem;
         border-top: 2px solid #e5e7eb;
     }
-    
+
     .btn {
         padding: 0.875rem 2rem;
         border-radius: 8px;
@@ -101,30 +105,124 @@
         text-decoration: none;
         display: inline-block;
     }
-    
+
     .btn-primary {
         background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
         color: white;
         flex: 1;
     }
-    
+
     .btn-primary:hover {
         transform: translateY(-2px);
         box-shadow: 0 10px 20px rgba(88,70,164, 0.3);
     }
-    
+
     .btn-secondary {
         background: #e5e7eb;
         color: #374151;
     }
-    
+
     .btn-secondary:hover {
         background: #d1d5db;
     }
-    
+
     .required::after {
         content: " *";
         color: #ef4444;
+    }
+
+    /* Invoice Section Styles */
+    .invoice-section {
+        background: #f9fafb;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-top: 1.5rem;
+        border: 2px solid #e5e7eb;
+        display: none;
+    }
+
+    .invoice-section.visible {
+        display: block;
+    }
+
+    .invoice-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        color: #1f2937;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .value-breakdown {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+    }
+
+    .value-breakdown-header {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.75rem;
+        font-size: 0.95rem;
+    }
+
+    .value-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        padding: 0.5rem;
+        background: #f9fafb;
+        border-radius: 6px;
+    }
+
+    .value-row:last-child {
+        margin-bottom: 0;
+        margin-top: 0.5rem;
+        padding-top: 0.75rem;
+        border-top: 2px solid #e5e7eb;
+        font-weight: 600;
+        background: white;
+    }
+
+    .value-label {
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+
+    .value-amount {
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 1rem;
+    }
+
+    .warning-message {
+        background: #fef3c7;
+        border: 1px solid #fde047;
+        color: #92400e;
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .success-message {
+        background: #d1fae5;
+        border: 1px solid #86efac;
+        color: #065f46;
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
 </style>
 
@@ -133,10 +231,12 @@
         <h1>{{ action }} Sales Enquiry</h1>
         <p>Fill in the details below to {{ action|lower }} a sales enquiry</p>
     </div>
-    
-    <form method="post">
+    <div class="form-sub-header">
+        <h2>Job Details</h2>
+    </div>
+    <form method="post" id="mainForm">
         {% csrf_token %}
-        
+
         <!-- Job Number - Always shown -->
         <div class="form-grid {% if is_add_form %}full-width{% endif %}">
             <div class="form-group">
@@ -159,6 +259,17 @@
             {% endif %}
         </div>
 
+        <!-- Location - Always shown -->
+        <div class="form-grid full-width">
+            <div class="form-group">
+                <label for="{{ form.location.id_for_label }}" class="required">Location</label>
+                {{ form.location }}
+                {% if form.location.errors %}
+                    <div class="error-message">{{ form.location.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+
         <!-- Value and Status - Only shown in Edit form -->
         {% if not is_add_form %}
         <div class="form-grid">
@@ -178,7 +289,81 @@
                 {% endif %}
             </div>
         </div>
+
+        <!-- Invoice Details Section - Only shown when status is Awarded -->
+        <div class="invoice-section" id="invoiceSection">
+            <div class="invoice-header">
+                💰 Invoice Details
+            </div>
+
+            <div class="form-group">
+                <label for="invoiceDate" class="required">Projected Invoice Date</label>
+                <input type="date" id="invoiceDate" name="invoice_date" class="form-input" required>
+            </div>
+
+            <div class="form-sub-header" style="margin-top: 1.5rem;">
+                <h2>Department Value Allocation</h2>
+            </div>
+
+            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem; text-align: center;">
+                Total Award Value: <strong style="color: #1f2937;">£<span id="totalAwardValue">0.00</span></strong>
+            </p>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="utilityValue">Utility (£)</label>
+                    <input type="number" id="utilityValue" name="invoice_utility_value" class="form-input" step="0.01" min="0" value="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="cadValue">CAD (£)</label>
+                    <input type="number" id="cadValue" name="invoice_cad_value" class="form-input" step="0.01" min="0" value="0">
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="topoValue">Topo (£)</label>
+                    <input type="number" id="topoValue" name="invoice_topo_value" class="form-input" step="0.01" min="0" value="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="contractorValue">Contractor (£)</label>
+                    <input type="number" id="contractorValue" name="invoice_contractor_value" class="form-input" step="0.01" min="0" value="0">
+                </div>
+            </div>
+
+            <div class="value-breakdown">
+                <div class="value-breakdown-header">Value Summary</div>
+                <div class="value-row">
+                    <span class="value-label">PSL Value (Utility + CAD + Topo):</span>
+                    <span class="value-amount">£<span id="pslValueDisplay">0.00</span></span>
+                </div>
+                <div class="value-row">
+                    <span class="value-label">Total Allocated:</span>
+                    <span class="value-amount">£<span id="totalAllocatedDisplay">0.00</span></span>
+                </div>
+                <div class="value-row">
+                    <span class="value-label">Remaining:</span>
+                    <span class="value-amount" id="remainingDisplay">£0.00</span>
+                </div>
+            </div>
+
+            <div id="allocationWarning" class="warning-message" style="display: none;">
+                <span>⚠️</span>
+                <span>Warning: Total allocated does not match award value</span>
+            </div>
+
+            <div id="allocationSuccess" class="success-message" style="display: none;">
+                <span>✓</span>
+                <span>Values allocated correctly</span>
+            </div>
+        </div>
         {% endif %}
+
+        <div class="form-sub-header">
+            <h2>Client Details</h2>
+        </div>
 
         <!-- Client and Contact - Always shown (Required) -->
         <div class="form-grid">
@@ -218,18 +403,11 @@
             </div>
         </div>
 
-        <!-- Location - Always shown -->
-        <div class="form-grid full-width">
-            <div class="form-group">
-                <label for="{{ form.location.id_for_label }}" class="required">Location</label>
-                {{ form.location }}
-                {% if form.location.errors %}
-                    <div class="error-message">{{ form.location.errors }}</div>
-                {% endif %}
-            </div>
+        <div class="form-sub-header">
+            <h2>Optional</h2>
         </div>
 
-                <!-- Notes - Always shown (Optional) -->
+        <!-- Notes - Always shown (Optional) -->
         <div class="form-grid full-width">
             <div class="form-group">
                 <label for="{{ form.note.id_for_label }}">Notes</label>
@@ -240,10 +418,164 @@
             </div>
         </div>
 
+        <!-- Feedback - Only Edit Form shown (Optional) -->
+        {% if not is_add_form %}
+            <div class="form-grid full-width">
+                <div class="form-group">
+                    <label for="{{ form.feedback.id_for_label }}">Feedback</label>
+                    {{ form.feedback }}
+                    {% if form.feedback.errors %}
+                        <div class="error-message">{{ form.feedback.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <!-- Other Feedback - Only shown when feedback is "Other" -->
+            <div class="form-grid full-width" id="other-feedback-container" style="display: none;">
+                <div class="form-group">
+                    <label for="{{ form.other_feedback.id_for_label }}" class="required">Other Feedback</label>
+                    {{ form.other_feedback }}
+                    {% if form.other_feedback.errors %}
+                        <div class="error-message">{{ form.other_feedback.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">{{ action }} Enquiry</button>
-            <a href="{% url 'sales_tracker' %}?page={{ page }}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-secondary">Cancel</a>
+            <a href="{% url 'sales_tracker' %}?page={{ page }}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}{% if scroll_pos %}&scroll={{ scroll_pos }}{% endif %}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 </div>
+
+<script>
+    {% if not is_add_form %}
+    // Store original status when page loads
+    const originalStatus = '{{ enquiry.status }}';
+
+    // Invoice section elements
+    const invoiceSection = document.getElementById('invoiceSection');
+    const statusSelect = document.getElementById('{{ form.status.id_for_label }}');
+    const valueInput = document.getElementById('{{ form.value.id_for_label }}');
+
+    // Invoice form elements
+    const invoiceDateInput = document.getElementById('invoiceDate');
+    const utilityValueInput = document.getElementById('utilityValue');
+    const cadValueInput = document.getElementById('cadValue');
+    const topoValueInput = document.getElementById('topoValue');
+    const contractorValueInput = document.getElementById('contractorValue');
+
+    // Display elements
+    const totalAwardValueDisplay = document.getElementById('totalAwardValue');
+    const pslValueDisplay = document.getElementById('pslValueDisplay');
+    const totalAllocatedDisplay = document.getElementById('totalAllocatedDisplay');
+    const remainingDisplay = document.getElementById('remainingDisplay');
+    const allocationWarning = document.getElementById('allocationWarning');
+    const allocationSuccess = document.getElementById('allocationSuccess');
+
+    // Load existing invoice data if available
+    {% if existing_invoice %}
+    invoiceDateInput.value = '{{ existing_invoice.date|date:"Y-m-d" }}';
+    utilityValueInput.value = '{{ existing_invoice.utility_value }}';
+    cadValueInput.value = '{{ existing_invoice.cad_value }}';
+    topoValueInput.value = '{{ existing_invoice.topo_value }}';
+    contractorValueInput.value = '{{ existing_invoice.contractor_value }}';
+    {% else %}
+    // Set default invoice date to today if no existing invoice
+    const today = new Date().toISOString().split('T')[0];
+    invoiceDateInput.value = today;
+    {% endif %}
+
+    // Update value displays
+    function updateValueDisplays() {
+        const awardValue = parseFloat(valueInput.value) || 0;
+        const utility = parseFloat(utilityValueInput.value) || 0;
+        const cad = parseFloat(cadValueInput.value) || 0;
+        const topo = parseFloat(topoValueInput.value) || 0;
+        const contractor = parseFloat(contractorValueInput.value) || 0;
+
+        const pslValue = utility + cad + topo;
+        const totalAllocated = pslValue + contractor;
+        const remaining = awardValue - totalAllocated;
+
+        totalAwardValueDisplay.textContent = awardValue.toFixed(2);
+        pslValueDisplay.textContent = pslValue.toFixed(2);
+        totalAllocatedDisplay.textContent = totalAllocated.toFixed(2);
+        remainingDisplay.textContent = remaining.toFixed(2);
+
+        // Show warning/success
+        if (Math.abs(remaining) > 0.01) {
+            allocationWarning.style.display = 'flex';
+            allocationSuccess.style.display = 'none';
+            remainingDisplay.style.color = '#dc2626';
+        } else {
+            allocationWarning.style.display = 'none';
+            allocationSuccess.style.display = 'flex';
+            remainingDisplay.style.color = '#059669';
+        }
+    }
+
+    // Toggle invoice section based on status
+    function toggleInvoiceSection() {
+        if (statusSelect.value === 'Awarded') {
+            invoiceSection.classList.add('visible');
+            invoiceDateInput.required = true;
+            updateValueDisplays();
+        } else {
+            invoiceSection.classList.remove('visible');
+            invoiceDateInput.required = false;
+        }
+    }
+
+    // Listen to value changes
+    [utilityValueInput, cadValueInput, topoValueInput, contractorValueInput, valueInput].forEach(input => {
+        input.addEventListener('input', updateValueDisplays);
+    });
+
+    // Listen to status changes
+    statusSelect.addEventListener('change', toggleInvoiceSection);
+
+    // Initialize on page load
+    toggleInvoiceSection();
+    updateValueDisplays();
+
+    // Form submission - add flag for invoice creation
+    const mainForm = document.getElementById('mainForm');
+    mainForm.addEventListener('submit', function(e) {
+        const currentStatus = statusSelect.value;
+
+        // If status is Awarded and it's a new award, add flag
+        if (originalStatus !== 'Awarded' && currentStatus === 'Awarded') {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'create_invoice';
+            input.value = 'true';
+            mainForm.appendChild(input);
+        }
+    });
+    {% endif %}
+
+    // Feedback "Other" toggle
+    {% if not is_add_form %}
+    document.addEventListener('DOMContentLoaded', function() {
+        const feedbackSelect = document.getElementById('{{ form.feedback.id_for_label }}');
+        const otherFeedbackContainer = document.getElementById('other-feedback-container');
+        const otherFeedbackInput = document.getElementById('{{ form.other_feedback.id_for_label }}');
+
+        function toggleOtherFeedback() {
+            if (feedbackSelect.value === 'Other') {
+                otherFeedbackContainer.style.display = 'block';
+                otherFeedbackInput.required = true;
+            } else {
+                otherFeedbackContainer.style.display = 'none';
+                otherFeedbackInput.required = false;
+                otherFeedbackInput.value = '';
+            }
+        }
+
+        toggleOtherFeedback();
+        feedbackSelect.addEventListener('change', toggleOtherFeedback);
+    });
+    {% endif %}
+</script>
 {% endblock %}

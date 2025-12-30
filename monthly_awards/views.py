@@ -42,7 +42,8 @@ def monthly_awards_list(request):
         awards = awards.filter(
             Q(job_number__icontains=search_query) |
             Q(location__icontains=search_query) |
-            Q(client__icontains=search_query)
+            Q(client__icontains=search_query) |
+            Q(client_contact__icontains=search_query)
         )
 
     # Sort by filter

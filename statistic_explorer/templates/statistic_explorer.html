@@ -4,6 +4,7 @@
 
 {% block content %}
 <style>
+    /* Previous styles remain the same... */
     /* Page Header */
     .page-header {
         background: white;
@@ -63,6 +64,45 @@
 
     .btn-export:hover {
         background: #b91c1c;
+    }
+
+    /* Section Toggle Controls */
+    .section-controls {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .section-controls h3 {
+        margin-bottom: 1rem;
+        color: #1f2937;
+        font-size: 1rem;
+    }
+
+    .toggle-options {
+        display: flex;
+        gap: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .toggle-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .toggle-item input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    .toggle-item label {
+        cursor: pointer;
+        color: #374151;
+        font-weight: 600;
     }
 
     /* Filters */
@@ -178,6 +218,10 @@
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
 
+    .chart-section.hidden {
+        display: none;
+    }
+
     .chart-header {
         display: flex;
         justify-content: space-between;
@@ -242,6 +286,10 @@
     .legend-color.awarded { background: #10b981; }
     .legend-color.rejected { background: #ef4444; }
     .legend-color.pending { background: #f59e0b; }
+    .legend-color.timeframe { background: #3b82f6; }
+    .legend-color.price { background: #ec4899; }
+    .legend-color.capability { background: #8b5cf6; }
+    .legend-color.other { background: #6b7280; }
 
     .legend-info {
         flex: 1;
@@ -365,13 +413,33 @@
         .summary-row {
             grid-template-columns: 1fr;
         }
+
+        .toggle-options {
+            flex-direction: column;
+            gap: 1rem;
+        }
     }
 </style>
 
 <div class="page-header">
     <h1>🔎 Statistic Explorer</h1>
     <div class="export-buttons">
-        <a href="{% url 'statistic_explorer_pdf' %}?filter_type={{ filter_type }}&year={{ selected_year }}&month={{ selected_month }}&date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-export" target="_blank">📄 Export PDF</a>
+        <button class="btn btn-export" id="exportPdfBtn">📄 Export PDF</button>
+    </div>
+</div>
+
+<!-- Section Visibility Controls -->
+<div class="section-controls">
+    <h3>📊 Select Sections to Display</h3>
+    <div class="toggle-options">
+        <div class="toggle-item">
+            <input type="checkbox" id="toggle-sales-status" checked>
+            <label for="toggle-sales-status">Sales Enquiries by Status</label>
+        </div>
+        <div class="toggle-item">
+            <input type="checkbox" id="toggle-feedback" checked>
+            <label for="toggle-feedback">Feedback Analysis</label>
+        </div>
     </div>
 </div>
 
@@ -437,7 +505,7 @@
 </div>
 
 <!-- Sales Enquiry Chart -->
-<div class="chart-section">
+<div class="chart-section" id="sales-status-section">
     <div class="chart-header">
         <h2>Sales Enquiries by Status</h2>
         <span class="filter-badge">{{ filter_description }}</span>
@@ -511,6 +579,88 @@
     {% endif %}
 </div>
 
+<!-- Feedback Analysis Chart -->
+<div class="chart-section" id="feedback-section">
+    <div class="chart-header">
+        <h2>Feedback Analysis</h2>
+        <span class="filter-badge">{{ filter_description }}</span>
+    </div>
+
+    {% if feedback_total_count > 0 %}
+    <div class="chart-container">
+        <div class="chart-wrapper">
+            <canvas id="feedbackChart"></canvas>
+        </div>
+
+        <div class="chart-legend">
+            <div class="legend-item">
+                <div class="legend-color timeframe"></div>
+                <div class="legend-info">
+                    <div class="legend-label">Timeframe</div>
+                    <div class="legend-value">{{ feedback_data.timeframe.percentage }}%</div>
+                </div>
+                <div class="legend-count">{{ feedback_data.timeframe.count }}</div>
+            </div>
+
+            <div class="legend-item">
+                <div class="legend-color price"></div>
+                <div class="legend-info">
+                    <div class="legend-label">Price</div>
+                    <div class="legend-value">{{ feedback_data.price.percentage }}%</div>
+                </div>
+                <div class="legend-count">{{ feedback_data.price.count }}</div>
+            </div>
+
+            <div class="legend-item">
+                <div class="legend-color capability"></div>
+                <div class="legend-info">
+                    <div class="legend-label">Capability</div>
+                    <div class="legend-value">{{ feedback_data.capability.percentage }}%</div>
+                </div>
+                <div class="legend-count">{{ feedback_data.capability.count }}</div>
+            </div>
+
+            <div class="legend-item">
+                <div class="legend-color other"></div>
+                <div class="legend-info">
+                    <div class="legend-label">Other</div>
+                    <div class="legend-value">{{ feedback_data.other.percentage }}%</div>
+                </div>
+                <div class="legend-count">{{ feedback_data.other.count }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="summary-row">
+        <div class="summary-card">
+            <div class="label">Total Feedback</div>
+            <div class="value">{{ feedback_total_count }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Most Common</div>
+            <div class="value">
+                {% if feedback_data.timeframe.count >= feedback_data.price.count and feedback_data.timeframe.count >= feedback_data.capability.count and feedback_data.timeframe.count >= feedback_data.other.count %}
+                    Timeframe
+                {% elif feedback_data.price.count >= feedback_data.capability.count and feedback_data.price.count >= feedback_data.other.count %}
+                    Price
+                {% elif feedback_data.capability.count >= feedback_data.other.count %}
+                    Capability
+                {% else %}
+                    Other
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="no-data">
+        <div class="no-data-icon">💬</div>
+        <h3>No feedback data available</h3>
+        <p>No feedback has been recorded for the selected period.</p>
+    </div>
+    {% endif %}
+</div>
+
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -528,6 +678,38 @@
         });
     });
 
+    // Section visibility toggles
+    const toggleSalesStatus = document.getElementById('toggle-sales-status');
+    const toggleFeedback = document.getElementById('toggle-feedback');
+    const salesStatusSection = document.getElementById('sales-status-section');
+    const feedbackSection = document.getElementById('feedback-section');
+
+    toggleSalesStatus.addEventListener('change', function() {
+        if (this.checked) {
+            salesStatusSection.classList.remove('hidden');
+        } else {
+            salesStatusSection.classList.add('hidden');
+        }
+    });
+
+    toggleFeedback.addEventListener('change', function() {
+        if (this.checked) {
+            feedbackSection.classList.remove('hidden');
+        } else {
+            feedbackSection.classList.add('hidden');
+        }
+    });
+
+    // PDF Export with selected sections
+    document.getElementById('exportPdfBtn').addEventListener('click', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('show_sales_status', toggleSalesStatus.checked);
+        urlParams.set('show_feedback', toggleFeedback.checked);
+
+        const exportUrl = '{% url "statistic_explorer_pdf" %}?' + urlParams.toString();
+        window.open(exportUrl, '_blank');
+    });
+
     {% if sales_total_count > 0 %}
     // Sales Doughnut Chart
     const salesCtx = document.getElementById('salesChart').getContext('2d');
@@ -542,6 +724,47 @@
                     {{ sales_data.pending.count }}
                 ],
                 backgroundColor: ['#10b981', '#ef4444', '#f59e0b'],
+                borderWidth: 0,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '60%',
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.raw / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.raw} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    {% if feedback_total_count > 0 %}
+    // Feedback Doughnut Chart
+    const feedbackCtx = document.getElementById('feedbackChart').getContext('2d');
+    new Chart(feedbackCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Timeframe', 'Price', 'Capability', 'Other'],
+            datasets: [{
+                data: [
+                    {{ feedback_data.timeframe.count }},
+                    {{ feedback_data.price.count }},
+                    {{ feedback_data.capability.count }},
+                    {{ feedback_data.other.count }}
+                ],
+                backgroundColor: ['#3b82f6', '#ec4899', '#8b5cf6', '#6b7280'],
                 borderWidth: 0,
                 hoverOffset: 10
             }]
