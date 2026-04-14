@@ -17,17 +17,20 @@ class MonthlyAward(models.Model):
     # Fields that can be inherited from SalesEnquiry OR entered manually
     job_number = models.CharField(max_length=20)
     location = models.TextField()
-    client = models.CharField(max_length=255)
-    client_contact = models.CharField(max_length=255)
-    email = models.EmailField(blank=True, null=True)
-    phone = models.CharField(max_length=100, blank=True, null=True)
+    client = models.ForeignKey(
+        'clients.Client',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='monthly_awards'
+    )
     value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     # Date awarded
     date = models.DateField(default=timezone.now, help_text="Date the job was awarded")
 
     # Metadata
-    created_by = models.ForeignKey(User,on_delete=models.SET_NULL, null=True, related_name='monthly_awards')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='monthly_awards')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -37,7 +40,8 @@ class MonthlyAward(models.Model):
         verbose_name_plural = 'Monthly Awards'
 
     def __str__(self):
-        return f"Award: Job #{self.job_number} - {self.client}"
+        client_name = self.client.name if self.client else 'N/A'
+        return f"Award: Job #{self.job_number} - {client_name}"
 
     def get_invoice_count(self):
         """Get count of invoices linked to this award"""

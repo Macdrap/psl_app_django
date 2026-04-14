@@ -3,14 +3,44 @@ from .models import SalesEnquiry
 from django.db.models import FloatField
 from django.db.models.functions import Cast
 
+
 class SalesEnquiryAddForm(forms.ModelForm):
     """Form for adding new enquiries - excludes date, value, and status"""
 
+    company_name = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter company name'
+        }),
+        label='Company Name'
+    )
+    contact_name = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter contact name'
+        }),
+        label='Contact Name'
+    )
+    email = forms.EmailField(
+        required=False,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter email address (optional)'
+        })
+    )
+    phone = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter phone number (optional)'
+        })
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Make email and phone not required
-        self.fields['email'].required = False
-        self.fields['phone'].required = False
         # Get the highest job number from the database
         last_job = SalesEnquiry.objects.annotate(
             job_number_int=Cast('job_number', FloatField())
@@ -23,7 +53,7 @@ class SalesEnquiryAddForm(forms.ModelForm):
 
     class Meta:
         model = SalesEnquiry
-        fields = ['job_number', 'location', 'client', 'client_contact', 'email', 'phone', 'note']
+        fields = ['job_number', 'location', 'note']
         widgets = {
             'job_number': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -39,36 +69,59 @@ class SalesEnquiryAddForm(forms.ModelForm):
                 'placeholder': 'Enter location',
                 'rows': 1
             }),
-            'client': forms.TextInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter company name'
-            }),
-            'client_contact': forms.TextInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter contact name'
-            }),
-            'email': forms.EmailInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter email address (optional)'
-            }),
-            'phone': forms.TextInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter phone number (optional)'
-            }),
-        }
-        labels = {
-            'client': 'Company Name',
-            'client_contact': 'Contact Name',
         }
 
 
 class SalesEnquiryEditForm(forms.ModelForm):
     """Form for editing enquiries - includes all fields"""
 
+    company_name = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter company name'
+        }),
+        label='Company Name'
+    )
+    contact_name = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter contact name'
+        }),
+        label='Contact Name'
+    )
+    email = forms.EmailField(
+        required=False,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter email address (optional)'
+        })
+    )
+    phone = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter phone number (optional)'
+        })
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['note'].required = False
+        self.fields['feedback'].required = False
+        # Pre-populate client fields from existing FK
+        if self.instance and self.instance.pk and self.instance.client:
+            client = self.instance.client
+            self.fields['company_name'].initial = client.name
+            self.fields['contact_name'].initial = client.contact.name
+            self.fields['email'].initial = client.contact.email
+            self.fields['phone'].initial = client.contact.phone
+
     class Meta:
         model = SalesEnquiry
-        fields = ['job_number', 'date', 'value', 'location', 'client',
-                  'client_contact', 'email', 'phone', 'status', 'note', 'feedback','other_feedback']
+        fields = ['job_number', 'date', 'value', 'location', 'status', 'note', 'feedback', 'other_feedback']
         widgets = {
             'job_number': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -102,35 +155,7 @@ class SalesEnquiryEditForm(forms.ModelForm):
                 'placeholder': 'Enter location',
                 'rows': 1
             }),
-            'client': forms.TextInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter company name'
-            }),
-            'client_contact': forms.TextInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter contact name'
-            }),
-            'email': forms.EmailInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter email address (optional)'
-            }),
-            'phone': forms.TextInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter phone number (optional)'
-            }),
             'status': forms.Select(attrs={
                 'class': 'form-input'
             }),
         }
-        labels = {
-            'client': 'Company Name',
-            'client_contact': 'Contact Name',
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Make email and phone not required
-        self.fields['email'].required = False
-        self.fields['phone'].required = False
-        self.fields['note'].required = False
-        self.fields['feedback'].required = False

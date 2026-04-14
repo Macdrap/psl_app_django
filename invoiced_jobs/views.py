@@ -42,8 +42,8 @@ def invoiced_jobs_list(request):
         jobs = jobs.filter(
             Q(award__job_number__icontains=search_query) |
             Q(award__location__icontains=search_query) |
-            Q(award__client__icontains=search_query) |
-            Q(award__client_contact__icontains=search_query)
+            Q(award__client__name__icontains=search_query) |
+            Q(award__client__contact__name__icontains=search_query)
         )
 
     # Add mismatch flags and totals to jobs

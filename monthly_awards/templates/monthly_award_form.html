@@ -183,18 +183,18 @@
 
         <div class="form-grid">
             <div class="form-group">
-                <label for="{{ award_form.client.id_for_label }}" class="required">Company Name</label>
-                {{ award_form.client }}
-                {% if award_form.client.errors %}
-                    <div class="error-message">{{ award_form.client.errors }}</div>
+                <label for="{{ award_form.company_name.id_for_label }}" class="required">Company Name</label>
+                {{ award_form.company_name }}
+                {% if award_form.company_name.errors %}
+                    <div class="error-message">{{ award_form.company_name.errors }}</div>
                 {% endif %}
             </div>
 
             <div class="form-group">
-                <label for="{{ award_form.client_contact.id_for_label }}" class="required">Contact Name</label>
-                {{ award_form.client_contact }}
-                {% if award_form.client_contact.errors %}
-                    <div class="error-message">{{ award_form.client_contact.errors }}</div>
+                <label for="{{ award_form.contact_name.id_for_label }}" class="required">Contact Name</label>
+                {{ award_form.contact_name }}
+                {% if award_form.contact_name.errors %}
+                    <div class="error-message">{{ award_form.contact_name.errors }}</div>
                 {% endif %}
             </div>
         </div>

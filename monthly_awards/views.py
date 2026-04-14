@@ -11,6 +11,28 @@ from .forms import MonthlyAwardForm
 from invoiced_jobs.models import InvoicedJob
 
 
+def get_or_create_client(company_name, contact_name, email, phone):
+    """Find or create Client and Contact records from text inputs."""
+    from clients.models import Contact, Client
+
+    email = email.strip() if email else None
+    phone = phone.strip() if phone else None
+
+    contact_qs = Contact.objects.filter(name=contact_name, email=email, phone=phone)
+    if contact_qs.exists():
+        contact = contact_qs.first()
+    else:
+        contact = Contact.objects.create(name=contact_name, email=email, phone=phone)
+
+    client_qs = Client.objects.filter(name=company_name, contact=contact)
+    if client_qs.exists():
+        client = client_qs.first()
+    else:
+        client = Client.objects.create(name=company_name, contact=contact)
+
+    return client
+
+
 @login_required
 def monthly_awards_list(request):
     """Monthly awards list view with year/month filtering, search, sort, and pagination"""
@@ -42,8 +64,8 @@ def monthly_awards_list(request):
         awards = awards.filter(
             Q(job_number__icontains=search_query) |
             Q(location__icontains=search_query) |
-            Q(client__icontains=search_query) |
-            Q(client_contact__icontains=search_query)
+            Q(client__name__icontains=search_query) |
+            Q(client__contact__name__icontains=search_query)
         )
 
     # Sort by filter
@@ -143,6 +165,14 @@ def add_monthly_award(request):
         if award_form.is_valid():
             award = award_form.save(commit=False)
             award.created_by = request.user
+
+            # Find or create Client from text inputs
+            company_name = award_form.cleaned_data['company_name']
+            contact_name = award_form.cleaned_data['contact_name']
+            email = award_form.cleaned_data.get('email') or None
+            phone = award_form.cleaned_data.get('phone') or None
+            award.client = get_or_create_client(company_name, contact_name, email, phone)
+
             award.save()
 
             messages.success(request, 'Monthly award created! You can now add invoices manually.')
@@ -188,7 +218,15 @@ def edit_monthly_award(request, pk):
     if request.method == 'POST':
         award_form = MonthlyAwardForm(request.POST, instance=award)
         if award_form.is_valid():
-            updated_award = award_form.save()
+            updated_award = award_form.save(commit=False)
+
+            # Find or create Client from text inputs
+            company_name = award_form.cleaned_data['company_name']
+            contact_name = award_form.cleaned_data['contact_name']
+            email = award_form.cleaned_data.get('email') or None
+            phone = award_form.cleaned_data.get('phone') or None
+            updated_award.client = get_or_create_client(company_name, contact_name, email, phone)
+            updated_award.save()
 
             # Update linked sale if exists
             if updated_award.sale:
@@ -196,9 +234,6 @@ def edit_monthly_award(request, pk):
                 sale.job_number = updated_award.job_number
                 sale.location = updated_award.location
                 sale.client = updated_award.client
-                sale.client_contact = updated_award.client_contact
-                sale.email = updated_award.email
-                sale.phone = updated_award.phone
                 sale.value = updated_award.value
                 sale.save()
 

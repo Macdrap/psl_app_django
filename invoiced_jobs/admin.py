@@ -7,7 +7,7 @@ class InvoicedJobAdmin(admin.ModelAdmin):
     list_display = [
         'get_job_number',
         'get_client',
-        'get_description_preview',  # NEW: Show description preview
+        'get_description_preview',
         'date',
         'psl_value',
         'contractor_value',
@@ -21,14 +21,15 @@ class InvoicedJobAdmin(admin.ModelAdmin):
         'date',
         'created_at',
         'created_by',
-        ('description', admin.EmptyFieldListFilter),  # NEW: Filter by has/no description
+        ('description', admin.EmptyFieldListFilter),
     ]
 
     search_fields = [
         'award__job_number',
-        'award__client',
+        'award__client__name',
+        'award__client__contact__name',
         'award__location',
-        'description',  # NEW: Search by description
+        'description',
     ]
 
     readonly_fields = [
@@ -47,7 +48,7 @@ class InvoicedJobAdmin(admin.ModelAdmin):
             'fields': ('award',)
         }),
         ('Invoice Information', {
-            'fields': ('date', 'status', 'description')  # NEW: Added description
+            'fields': ('date', 'status', 'description')
         }),
         ('Value Breakdown', {
             'fields': ('utility_value', 'cad_value',
@@ -61,15 +62,15 @@ class InvoicedJobAdmin(admin.ModelAdmin):
 
     def get_job_number(self, obj):
         return obj.award.job_number if obj.award else 'N/A'
-
     get_job_number.short_description = 'Job Number'
     get_job_number.admin_order_field = 'award__job_number'
 
     def get_client(self, obj):
-        return obj.award.client if obj.award else 'N/A'
-
+        if obj.award and obj.award.client:
+            return obj.award.client.name
+        return 'N/A'
     get_client.short_description = 'Client'
-    get_client.admin_order_field = 'award__client'
+    get_client.admin_order_field = 'award__client__name'
 
     def get_description_preview(self, obj):
         """Show first 50 characters of description"""
@@ -78,7 +79,6 @@ class InvoicedJobAdmin(admin.ModelAdmin):
                 return f"{obj.description[:50]}..."
             return obj.description
         return "-"
-
     get_description_preview.short_description = 'Description'
 
     def save_model(self, request, obj, form, change):

@@ -6,10 +6,51 @@ from sales_tracker.models import SalesEnquiry
 class MonthlyAwardForm(forms.ModelForm):
     """Form for creating/editing monthly awards"""
 
+    company_name = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter company name',
+        }),
+        label='Company Name'
+    )
+    contact_name = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter contact name',
+        }),
+        label='Contact Name'
+    )
+    email = forms.EmailField(
+        required=False,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter email address (optional)',
+        })
+    )
+    phone = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Enter phone number (optional)',
+        })
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Pre-populate client fields from existing FK
+        if self.instance and self.instance.pk and self.instance.client:
+            client = self.instance.client
+            self.fields['company_name'].initial = client.name
+            self.fields['contact_name'].initial = client.contact.name
+            self.fields['email'].initial = client.contact.email
+            self.fields['phone'].initial = client.contact.phone
+
     class Meta:
         model = MonthlyAward
-        fields = ['job_number', 'date', 'location', 'client',
-                  'client_contact', 'email', 'phone', 'value']
+        fields = ['job_number', 'date', 'location', 'value']
         widgets = {
             'job_number': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -26,26 +67,6 @@ class MonthlyAwardForm(forms.ModelForm):
                 'rows': 3,
                 'id': 'id_location'
             }),
-            'client': forms.TextInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter company name',
-                'id': 'id_client'
-            }),
-            'client_contact': forms.TextInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter contact name',
-                'id': 'id_client_contact'
-            }),
-            'email': forms.EmailInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter email address (optional)',
-                'id': 'id_email'
-            }),
-            'phone': forms.TextInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter phone number (optional)',
-                'id': 'id_phone'
-            }),
             'value': forms.NumberInput(attrs={
                 'class': 'form-input',
                 'placeholder': 'Enter value',
@@ -54,13 +75,5 @@ class MonthlyAwardForm(forms.ModelForm):
             }),
         }
         labels = {
-            'client': 'Company Name',
-            'client_contact': 'Contact Name',
             'date': 'Date Awarded',
         }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Make email and phone not required
-        self.fields['email'].required = False
-        self.fields['phone'].required = False

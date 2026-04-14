@@ -7,8 +7,8 @@ class MonthlyAwardAdmin(admin.ModelAdmin):
     list_display = [
         'job_number',
         'date',
-        'client',
-        'client_contact',
+        'get_client_name',
+        'get_contact_name',
         'value',
         'sale',
         'created_by',
@@ -23,10 +23,10 @@ class MonthlyAwardAdmin(admin.ModelAdmin):
 
     search_fields = [
         'job_number',
-        'client',
-        'client_contact',
-        'email',
-        'phone',
+        'client__name',
+        'client__contact__name',
+        'client__contact__email',
+        'client__contact__phone',
         'location'
     ]
 
@@ -48,8 +48,8 @@ class MonthlyAwardAdmin(admin.ModelAdmin):
         ('Award Information', {
             'fields': ('job_number', 'date', 'value')
         }),
-        ('Company Details', {
-            'fields': ('client', 'client_contact', 'email', 'phone')
+        ('Client', {
+            'fields': ('client',)
         }),
         ('Location', {
             'fields': ('location',)
@@ -59,6 +59,16 @@ class MonthlyAwardAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+    def get_client_name(self, obj):
+        return obj.client.name if obj.client else '-'
+    get_client_name.short_description = 'Company'
+    get_client_name.admin_order_field = 'client__name'
+
+    def get_contact_name(self, obj):
+        return obj.client.contact.name if obj.client else '-'
+    get_contact_name.short_description = 'Contact'
+    get_contact_name.admin_order_field = 'client__contact__name'
 
     def save_model(self, request, obj, form, change):
         """Automatically set created_by to current user if creating new award"""

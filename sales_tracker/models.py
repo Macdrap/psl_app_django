@@ -25,10 +25,13 @@ class SalesEnquiry(models.Model):
     feedback = models.CharField(blank=True, null=True, choices=FEEDBACK_CHOICES, default='')
     other_feedback = models.TextField(blank=True, null=True)
     location = models.TextField()
-    client = models.CharField(max_length=255)
-    client_contact = models.CharField(max_length=255)
-    email = models.EmailField(blank=True, null=True)
-    phone = models.CharField(max_length=100, blank=True, null=True)
+    client = models.ForeignKey(
+        'clients.Client',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='sales_enquiries'
+    )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Pending')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='sales_enquiries')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -40,4 +43,5 @@ class SalesEnquiry(models.Model):
         verbose_name_plural = 'Sales Enquiries'
 
     def __str__(self):
-        return f"Job #{self.job_number} - {self.client}"
+        client_name = self.client.name if self.client else 'N/A'
+        return f"Job #{self.job_number} - {client_name}"

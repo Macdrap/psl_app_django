@@ -13,6 +13,28 @@ from django.db.models import Q, Max
 from datetime import datetime
 
 
+def get_or_create_client(company_name, contact_name, email, phone):
+    """Find or create Client and Contact records from text inputs."""
+    from clients.models import Contact, Client
+
+    email = email.strip() if email else None
+    phone = phone.strip() if phone else None
+
+    contact_qs = Contact.objects.filter(name=contact_name, email=email, phone=phone)
+    if contact_qs.exists():
+        contact = contact_qs.first()
+    else:
+        contact = Contact.objects.create(name=contact_name, email=email, phone=phone)
+
+    client_qs = Client.objects.filter(name=company_name, contact=contact)
+    if client_qs.exists():
+        client = client_qs.first()
+    else:
+        client = Client.objects.create(name=company_name, contact=contact)
+
+    return client
+
+
 @login_required
 def sales_tracker(request):
     """Sales tracker list view with pagination"""
@@ -21,12 +43,11 @@ def sales_tracker(request):
     # Search functionality
     search_query = request.GET.get('search', '')
     if search_query:
-        from django.db.models import Q
         enquiries = enquiries.filter(
             Q(job_number__icontains=search_query) |
             Q(location__icontains=search_query) |
-            Q(client__icontains=search_query) |
-            Q(client_contact__icontains=search_query)
+            Q(client__name__icontains=search_query) |
+            Q(client__contact__name__icontains=search_query)
         )
 
     # Sort by filter
@@ -111,6 +132,14 @@ def add_sales_enquiry(request):
         if form.is_valid():
             enquiry = form.save(commit=False)
             enquiry.created_by = request.user
+
+            # Find or create Client from text inputs
+            company_name = form.cleaned_data['company_name']
+            contact_name = form.cleaned_data['contact_name']
+            email = form.cleaned_data.get('email') or None
+            phone = form.cleaned_data.get('phone') or None
+            enquiry.client = get_or_create_client(company_name, contact_name, email, phone)
+
             enquiry.save()
             messages.success(request, 'Sales enquiry added successfully!')
             # Redirect back to the same page with filters and scroll
@@ -169,7 +198,15 @@ def edit_sales_enquiry(request, pk):
     if request.method == 'POST':
         form = SalesEnquiryEditForm(request.POST, instance=enquiry)
         if form.is_valid():
-            updated_enquiry = form.save()
+            updated_enquiry = form.save(commit=False)
+
+            # Find or create Client from text inputs
+            company_name = form.cleaned_data['company_name']
+            contact_name = form.cleaned_data['contact_name']
+            email = form.cleaned_data.get('email') or None
+            phone = form.cleaned_data.get('phone') or None
+            updated_enquiry.client = get_or_create_client(company_name, contact_name, email, phone)
+            updated_enquiry.save()
 
             from monthly_awards.models import MonthlyAward
             from invoiced_jobs.models import InvoicedJob
@@ -183,9 +220,6 @@ def edit_sales_enquiry(request, pk):
                     job_number=updated_enquiry.job_number,
                     location=updated_enquiry.location,
                     client=updated_enquiry.client,
-                    client_contact=updated_enquiry.client_contact,
-                    email=updated_enquiry.email,
-                    phone=updated_enquiry.phone,
                     value=updated_enquiry.value,
                     date=timezone.now().date(),
                     created_by=request.user
@@ -256,14 +290,11 @@ def edit_sales_enquiry(request, pk):
 
             # If status is still "Awarded", update linked awards AND invoice
             elif updated_enquiry.status == 'Awarded':
-                # Update awards
+                # Update awards - pass the client FK directly
                 MonthlyAward.objects.filter(sale=updated_enquiry).update(
                     job_number=updated_enquiry.job_number,
                     location=updated_enquiry.location,
                     client=updated_enquiry.client,
-                    client_contact=updated_enquiry.client_contact,
-                    email=updated_enquiry.email,
-                    phone=updated_enquiry.phone,
                     value=updated_enquiry.value
                 )
 
@@ -428,7 +459,7 @@ def sales_tracker_poll(request):
         enquiries = enquiries.filter(
             Q(job_number__icontains=search_query) |
             Q(location__icontains=search_query) |
-            Q(client__icontains=search_query)
+            Q(client__name__icontains=search_query)
         )
 
     # Get current count (filtered)
@@ -470,8 +501,8 @@ def sales_tracker_poll(request):
             enquiries = enquiries.filter(
                 Q(job_number__icontains=search_query) |
                 Q(location__icontains=search_query) |
-                Q(client__icontains=search_query) |
-                Q(client_contact__icontains=search_query)
+                Q(client__name__icontains=search_query) |
+                Q(client__contact__name__icontains=search_query)
             )
 
         # Apply sorting - MUST match main view exactly
