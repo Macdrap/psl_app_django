@@ -15,7 +15,7 @@ class Contact(models.Model):
 
 
 class Client(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, unique=True)
     contact = models.ForeignKey(
         Contact,
         on_delete=models.PROTECT,

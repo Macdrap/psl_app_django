@@ -11,7 +11,7 @@ def migrate_client_data(apps, schema_editor):
     SalesEnquiry = apps.get_model('sales_tracker', 'SalesEnquiry')
     MonthlyAward = apps.get_model('monthly_awards', 'MonthlyAward')
 
-    # Cache: (company_name, contact_name, email, phone) -> Client instance
+    # Cache: company_name -> Client instance (one client per company)
     client_cache = {}
 
     def get_or_create_client(company, contact_name, email, phone):
@@ -21,33 +21,32 @@ def migrate_client_data(apps, schema_editor):
         company = company.strip() if company else ''
         contact_name = contact_name.strip() if contact_name else ''
 
-        key = (company, contact_name, email or '', phone or '')
-        if key in client_cache:
-            return client_cache[key]
+        # Client is unique by company name only
+        if company in client_cache:
+            return client_cache[company]
 
-        # Find or create a matching Contact
-        contact_qs = Contact.objects.filter(
-            name=contact_name,
-            email=email,
-            phone=phone,
-        )
-        if contact_qs.exists():
-            contact = contact_qs.first()
+        client_qs = Client.objects.filter(name=company)
+        if client_qs.exists():
+            client = client_qs.first()
+            # Update the contact in place if details differ
+            contact = client.contact
+            if (contact.name != contact_name or
+                    contact.email != email or
+                    contact.phone != phone):
+                contact.name = contact_name
+                contact.email = email
+                contact.phone = phone
+                contact.save()
         else:
+            # New company — create a dedicated contact and client
             contact = Contact.objects.create(
                 name=contact_name,
                 email=email,
                 phone=phone,
             )
-
-        # Find or create a matching Client
-        client_qs = Client.objects.filter(name=company, contact=contact)
-        if client_qs.exists():
-            client = client_qs.first()
-        else:
             client = Client.objects.create(name=company, contact=contact)
 
-        client_cache[key] = client
+        client_cache[company] = client
         return client
 
     # Migrate SalesEnquiry records

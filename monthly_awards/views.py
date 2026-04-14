@@ -12,22 +12,33 @@ from invoiced_jobs.models import InvoicedJob
 
 
 def get_or_create_client(company_name, contact_name, email, phone):
-    """Find or create Client and Contact records from text inputs."""
+    """Find or create Client and Contact records from text inputs.
+
+    A Client is looked up by company name alone — no duplicate companies.
+    A Contact is scoped to its Client: two different companies can each have
+    a 'John Doe', but one company cannot have two 'John Doe' contacts.
+    If the Client already exists its contact details are updated in place.
+    """
     from clients.models import Contact, Client
 
+    company_name = company_name.strip() if company_name else ''
+    contact_name = contact_name.strip() if contact_name else ''
     email = email.strip() if email else None
     phone = phone.strip() if phone else None
 
-    contact_qs = Contact.objects.filter(name=contact_name, email=email, phone=phone)
-    if contact_qs.exists():
-        contact = contact_qs.first()
-    else:
-        contact = Contact.objects.create(name=contact_name, email=email, phone=phone)
+    client = Client.objects.filter(name=company_name).first()
 
-    client_qs = Client.objects.filter(name=company_name, contact=contact)
-    if client_qs.exists():
-        client = client_qs.first()
+    if client:
+        # Client exists — update its contact details if anything changed
+        contact = client.contact
+        if contact.name != contact_name or contact.email != email or contact.phone != phone:
+            contact.name = contact_name
+            contact.email = email
+            contact.phone = phone
+            contact.save()
     else:
+        # New company — create a fresh contact and client
+        contact = Contact.objects.create(name=contact_name, email=email, phone=phone)
         client = Client.objects.create(name=company_name, contact=contact)
 
     return client

@@ -67,3 +67,5 @@ certbot/
 # Backup files
 *.bak
 *.backup
+/.claude/
+/.claire/
