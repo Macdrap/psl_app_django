@@ -402,10 +402,9 @@
         else if (e.key === 'Escape') closeCompanyDropdown();
     });
 
-    companyInput.addEventListener('blur', () => setTimeout(closeCompanyDropdown, 150));
-    contactInput.addEventListener('blur', () => setTimeout(closeContactDropdown, 150));
-    document.addEventListener('click', (e) => {
-        if (!wrapper.contains(e.target)) closeCompanyDropdown();
+    // Close dropdowns when clicking outside — more reliable than blur in all browsers/envs
+    document.addEventListener('mousedown', (e) => {
+        if (!wrapper.contains(e.target))        closeCompanyDropdown();
         if (!contactWrapper.contains(e.target)) closeContactDropdown();
     });
 }());
