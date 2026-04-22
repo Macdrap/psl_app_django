@@ -769,8 +769,8 @@
                 </td>
                 <td>
                     <div class="action-buttons">
-                        <a href="{% url 'edit_invoiced_job' job.pk %}?year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&per_page={{ per_page }}&page={{ jobs.number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-small btn-edit">Edit</a>
-                        <a href="{% url 'delete_invoiced_job' job.pk %}?year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&per_page={{ per_page }}&page={{ jobs.number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-small btn-delete">Delete</a>
+                        <a href="{% url 'edit_invoiced_job' job.pk %}?year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&per_page={{ per_page }}&page={{ jobs.number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-small btn-edit scroll-link">Edit</a>
+                        <a href="{% url 'delete_invoiced_job' job.pk %}?year={{ selected_year }}&month={{ selected_month }}&sort_by={{ sort_by }}&per_page={{ per_page }}&page={{ jobs.number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="btn btn-small btn-delete scroll-link">Delete</a>
                     </div>
                 </td>
             </tr>
@@ -948,6 +948,25 @@
         if (e.key === 'Escape') {
             clearSelection();
         }
+    });
+})();
+
+// ── Scroll position preservation ─────────────────────────────────────────────
+(function () {
+    // Restore scroll position if returning from edit/delete
+    const params = new URLSearchParams(window.location.search);
+    const scrollPos = parseInt(params.get('scroll') || '0', 10);
+    if (scrollPos > 0) {
+        requestAnimationFrame(() => window.scrollTo(0, scrollPos));
+    }
+
+    // Inject current scroll position into Edit/Delete links before navigating
+    document.querySelectorAll('.scroll-link').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            const url = new URL(this.href, window.location.origin);
+            url.searchParams.set('scroll', Math.round(window.scrollY).toString());
+            this.href = url.toString();
+        });
     });
 })();
 </script>

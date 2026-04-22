@@ -166,6 +166,7 @@ def add_invoiced_job(request):
     per_page = request.GET.get('per_page', '10')
     year = request.GET.get('year', '')
     month = request.GET.get('month', '')
+    scroll_pos = request.GET.get('scroll', '0')
 
     if request.method == 'POST':
         form = InvoicedJobForm(request.POST)
@@ -175,8 +176,7 @@ def add_invoiced_job(request):
             job.save()
             messages.success(request, 'Invoice added successfully!')
 
-            # Redirect back with filters
-            params = {'page': page, 'sort_by': sort_by, 'per_page': per_page}
+            params = {'page': page, 'sort_by': sort_by, 'per_page': per_page, 'scroll': scroll_pos}
             if search_query:
                 params['search'] = search_query
             if year:
@@ -197,6 +197,7 @@ def add_invoiced_job(request):
         'per_page': per_page,
         'year': year,
         'month': month,
+        'scroll_pos': scroll_pos,
     }
     return render(request, 'invoiced_job_form.html', context)
 
@@ -213,15 +214,16 @@ def edit_invoiced_job(request, pk):
     per_page = request.GET.get('per_page', '10')
     year = request.GET.get('year', '')
     month = request.GET.get('month', '')
+    scroll_pos = request.GET.get('scroll', '0')
 
     if request.method == 'POST':
+        scroll_pos = request.POST.get('scroll', scroll_pos)
         form = InvoicedJobForm(request.POST, instance=job)
         if form.is_valid():
             form.save()
             messages.success(request, 'Invoice updated successfully!')
 
-            # Redirect back with filters
-            params = {'page': page, 'sort_by': sort_by, 'per_page': per_page}
+            params = {'page': page, 'sort_by': sort_by, 'per_page': per_page, 'scroll': scroll_pos}
             if search_query:
                 params['search'] = search_query
             if year:
@@ -243,6 +245,7 @@ def edit_invoiced_job(request, pk):
         'per_page': per_page,
         'year': year,
         'month': month,
+        'scroll_pos': scroll_pos,
     }
     return render(request, 'invoiced_job_form.html', context)
 
@@ -259,19 +262,19 @@ def delete_invoiced_job(request, pk):
     per_page = request.GET.get('per_page', '10')
     year = request.GET.get('year', '')
     month = request.GET.get('month', '')
+    scroll_pos = request.GET.get('scroll', '0')
 
     if request.method == 'POST':
+        scroll_pos = request.POST.get('scroll', scroll_pos)
         award = job.award
         job.delete()
 
-        # Check if award now has no invoices
         if award.has_no_invoices():
             messages.warning(request, 'Invoice deleted. Warning: Award now has no invoices!')
         else:
             messages.success(request, 'Invoice deleted successfully!')
 
-        # Redirect back with filters
-        params = {'page': page, 'sort_by': sort_by, 'per_page': per_page}
+        params = {'page': page, 'sort_by': sort_by, 'per_page': per_page, 'scroll': scroll_pos}
         if search_query:
             params['search'] = search_query
         if year:
@@ -289,6 +292,7 @@ def delete_invoiced_job(request, pk):
         'per_page': per_page,
         'year': year,
         'month': month,
+        'scroll_pos': scroll_pos,
     }
     return render(request, 'invoiced_job_confirm_delete.html', context)
 
