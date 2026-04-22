@@ -278,26 +278,26 @@
     }
 
     /* ── Pagination ── */
-    .pagination-card {
+    .pagination-bar-fixed {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 200;
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        margin-bottom: 1rem;
+        box-shadow: 0 -2px 12px rgba(0,0,0,0.12);
+        border-top: 1px solid #e5e7eb;
     }
 
     .pagination-container {
-        padding: 1rem 1.5rem;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0.75rem 2rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
         gap: 1rem;
-        position: sticky;
-        bottom: 0;
-        z-index: 100;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
     }
 
     .pagination-info { color: #6b7280; font-size: 0.875rem; }
@@ -378,43 +378,8 @@
     </form>
 </div>
 
-{% if page_obj.has_other_pages %}
-<div class="pagination-card">
-    <div class="pagination-container">
-        <div class="pagination-info">
-            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
-        </div>
-        <ul class="pagination">
-            {% if page_obj.has_previous %}
-                <li><a href="?page=1&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">First</a></li>
-                <li><a href="?page={{ page_obj.previous_page_number }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">&lsaquo; Prev</a></li>
-            {% else %}
-                <li><span class="disabled">First</span></li>
-                <li><span class="disabled">&lsaquo; Prev</span></li>
-            {% endif %}
-
-            {% for num in page_obj.paginator.page_range %}
-                {% if page_obj.number == num %}
-                    <li><span class="current">{{ num }}</span></li>
-                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                    <li><a href="?page={{ num }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a></li>
-                {% endif %}
-            {% endfor %}
-
-            {% if page_obj.has_next %}
-                <li><a href="?page={{ page_obj.next_page_number }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">Next &rsaquo;</a></li>
-                <li><a href="?page={{ page_obj.paginator.num_pages }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">Last</a></li>
-            {% else %}
-                <li><span class="disabled">Next &rsaquo;</span></li>
-                <li><span class="disabled">Last</span></li>
-            {% endif %}
-        </ul>
-    </div>
-</div>
-{% endif %}
-
 {% if page_obj %}
-<div class="clients-list">
+<div class="clients-list" style="margin-bottom: 80px;">
     {% for client in page_obj %}
     <div class="client-card">
 
@@ -528,7 +493,7 @@
 {% endif %}
 
 {% if page_obj.has_other_pages %}
-<div class="pagination-card">
+<div class="pagination-bar-fixed">
     <div class="pagination-container">
         <div class="pagination-info">
             Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
