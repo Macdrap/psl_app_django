@@ -27,7 +27,8 @@ class InvoicedJobAdmin(admin.ModelAdmin):
     search_fields = [
         'award__job_number',
         'award__client__name',
-        'award__client__contact__name',
+        'award__contact__name',
+        'award__contact__email',
         'award__location',
         'description',
     ]

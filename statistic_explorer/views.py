@@ -7,6 +7,7 @@ from datetime import datetime, date
 from decimal import Decimal
 
 from sales_tracker.models import SalesEnquiry
+from clients.models import SECTOR_CHOICES, CLIENT_STATUS_CHOICES
 
 
 class StatisticExplorerView(LoginRequiredMixin, TemplateView):
@@ -107,14 +108,14 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
         total_count = sum(d['count'] for d in sales_data.values())
         total_value = sum(d['value'] for d in sales_data.values())
 
-        # Calculate percentages
+        # Calculate percentages (by count and by value)
         for key in sales_data:
-            if total_count > 0:
-                sales_data[key]['percentage'] = round(
-                    (sales_data[key]['count'] / total_count) * 100, 1
-                )
-            else:
-                sales_data[key]['percentage'] = 0
+            sales_data[key]['percentage'] = round(
+                (sales_data[key]['count'] / total_count) * 100, 1
+            ) if total_count else 0
+            sales_data[key]['value_percentage'] = round(
+                float(sales_data[key]['value']) / float(total_value) * 100, 1
+            ) if total_value else 0
 
         # Aggregate feedback data
         feedback_stats = enquiries.exclude(
@@ -149,6 +150,186 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
             else:
                 feedback_data[key]['percentage'] = 0
 
+        # ── Referral analysis ─────────────────────────────────────────────────
+        from sales_tracker.models import SalesEnquiry as SEModel
+        REFERRAL_CHOICES = SEModel.REFERRAL_CHOICES
+
+        referral_stats = (
+            enquiries
+            .exclude(Q(referral__isnull=True) | Q(referral=''))
+            .values('referral', 'status')
+            .annotate(count=Count('id'), total_value=Sum('value'))
+        )
+
+        referral_data = {}
+        for code, label in REFERRAL_CHOICES:
+            referral_data[code] = {
+                'label': label,
+                'awarded': {'count': 0, 'value': Decimal('0.00')},
+                'rejected': {'count': 0, 'value': Decimal('0.00')},
+                'pending':  {'count': 0, 'value': Decimal('0.00')},
+            }
+
+        for stat in referral_stats:
+            code   = stat['referral'] or 'other'
+            status = (stat['status'] or '').lower()
+            if code in referral_data and status in ('awarded', 'rejected', 'pending'):
+                referral_data[code][status]['count'] += stat['count']
+                referral_data[code][status]['value'] += stat['total_value'] or Decimal('0.00')
+
+        _referral_palette = {'google': '#4285f4', 'recommendation': '#10b981', 'other': '#6b7280'}
+        for code, data in referral_data.items():
+            tc = data['awarded']['count'] + data['rejected']['count'] + data['pending']['count']
+            tv = data['awarded']['value'] + data['rejected']['value'] + data['pending']['value']
+            data['total_count'] = tc
+            data['total_value'] = tv
+            for st in ('awarded', 'rejected', 'pending'):
+                data[st]['pct_count'] = round(data[st]['count'] / tc * 100, 1) if tc else 0
+                data[st]['pct_value'] = round(float(data[st]['value']) / float(tv) * 100, 1) if tv else 0
+            data['color'] = _referral_palette.get(code, '#9ca3af')
+
+        active_referrals = {k: v for k, v in referral_data.items() if v['total_count'] > 0}
+        referral_has_data = bool(active_referrals)
+
+        all_ref_count = sum(v['total_count'] for v in active_referrals.values())
+        all_ref_value = sum(float(v['total_value']) for v in active_referrals.values())
+        for data in active_referrals.values():
+            data['pct_of_all_count'] = round(data['total_count'] / all_ref_count * 100, 1) if all_ref_count else 0
+            data['pct_of_all_value'] = round(float(data['total_value']) / all_ref_value * 100, 1) if all_ref_value else 0
+
+        referral_labels       = [v['label']             for v in active_referrals.values()]
+        referral_total_counts = [v['total_count']        for v in active_referrals.values()]
+        referral_total_values = [float(v['total_value']) for v in active_referrals.values()]
+        referral_colors       = [v['color']              for v in active_referrals.values()]
+
+        # ── Sector analysis ───────────────────────────────────────────────────
+        sector_stats = (
+            enquiries
+            .filter(client__isnull=False)
+            .values('client__sector', 'status')
+            .annotate(count=Count('id'), total_value=Sum('value'))
+        )
+
+        # Initialise one entry per known sector
+        sector_data = {}
+        for code, label in SECTOR_CHOICES:
+            sector_data[code] = {
+                'label': label,
+                'awarded': {'count': 0, 'value': Decimal('0.00')},
+                'rejected': {'count': 0, 'value': Decimal('0.00')},
+                'pending':  {'count': 0, 'value': Decimal('0.00')},
+            }
+
+        for stat in sector_stats:
+            code   = stat['client__sector'] or 'other'
+            status = (stat['status'] or '').lower()
+            if code in sector_data and status in ('awarded', 'rejected', 'pending'):
+                sector_data[code][status]['count'] = stat['count']
+                sector_data[code][status]['value'] = stat['total_value'] or Decimal('0.00')
+
+        # Totals + percentages per sector
+        for code, data in sector_data.items():
+            tc = data['awarded']['count'] + data['rejected']['count'] + data['pending']['count']
+            tv = data['awarded']['value'] + data['rejected']['value'] + data['pending']['value']
+            data['total_count'] = tc
+            data['total_value'] = tv
+            for st in ('awarded', 'rejected', 'pending'):
+                data[st]['pct_count'] = round(data[st]['count'] / tc * 100, 1) if tc else 0
+                data[st]['pct_value'] = round(float(data[st]['value']) / float(tv) * 100, 1) if tv else 0
+
+        # Assign a distinct colour to each sector (consistent with SECTOR_CHOICES order)
+        _palette = ['#6366f1', '#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#6b7280']
+        _color_map = {code: _palette[i] for i, (code, _) in enumerate(SECTOR_CHOICES)}
+        for code, data in sector_data.items():
+            data['color'] = _color_map.get(code, '#9ca3af')
+
+        # Only keep sectors that have at least one enquiry
+        active_sectors = {k: v for k, v in sector_data.items() if v['total_count'] > 0}
+        sector_has_data = bool(active_sectors)
+
+        # % of all enquiries / all value that each sector represents
+        all_sector_count = sum(v['total_count'] for v in active_sectors.values())
+        all_sector_value = sum(float(v['total_value']) for v in active_sectors.values())
+        for data in active_sectors.values():
+            data['pct_of_all_count'] = round(data['total_count'] / all_sector_count * 100, 1) if all_sector_count else 0
+            data['pct_of_all_value'] = round(float(data['total_value']) / all_sector_value * 100, 1) if all_sector_value else 0
+
+        # Chart-ready flat lists (same order as active_sectors)
+        sector_labels          = [v['label']                        for v in active_sectors.values()]
+        sector_awarded_counts  = [v['awarded']['count']             for v in active_sectors.values()]
+        sector_rejected_counts = [v['rejected']['count']            for v in active_sectors.values()]
+        sector_pending_counts  = [v['pending']['count']             for v in active_sectors.values()]
+        sector_awarded_values  = [float(v['awarded']['value'])      for v in active_sectors.values()]
+        sector_rejected_values = [float(v['rejected']['value'])     for v in active_sectors.values()]
+        sector_pending_values  = [float(v['pending']['value'])      for v in active_sectors.values()]
+        sector_total_counts    = [v['total_count']                  for v in active_sectors.values()]
+        sector_total_values    = [float(v['total_value'])           for v in active_sectors.values()]
+        sector_win_pct_count   = [v['awarded']['pct_count']         for v in active_sectors.values()]
+        sector_win_pct_value   = [v['awarded']['pct_value']         for v in active_sectors.values()]
+        sector_chart_colors    = [v['color']                        for v in active_sectors.values()]
+
+        # ── Client status analysis ────────────────────────────────────────────
+        from clients.models import Client as ClientModel
+        _status_palette = {'current': '#10b981', 'new': '#3b82f6', 'dormant': '#9ca3af'}
+
+        # How many CLIENTS exist per status (for the doughnut)
+        client_counts_qs = ClientModel.objects.values('client_status').annotate(c=Count('id'))
+        client_counts_by_status = {row['client_status']: row['c'] for row in client_counts_qs}
+        total_clients = sum(client_counts_by_status.values())
+
+        # Enquiry breakdown per client-status × enquiry-status (for summary rows)
+        enquiry_by_cs = (
+            enquiries
+            .filter(client__isnull=False)
+            .values('client__client_status', 'status')
+            .annotate(count=Count('id'), total_value=Sum('value'))
+        )
+
+        client_status_data = {}
+        for code, label in CLIENT_STATUS_CHOICES:
+            client_status_data[code] = {
+                'label': label,
+                'client_count': client_counts_by_status.get(code, 0),
+                'pct_clients': round(client_counts_by_status.get(code, 0) / total_clients * 100, 1) if total_clients else 0,
+                'color': _status_palette.get(code, '#6b7280'),
+                'awarded': {'count': 0, 'value': Decimal('0.00')},
+                'pending':  {'count': 0, 'value': Decimal('0.00')},
+                'rejected': {'count': 0, 'value': Decimal('0.00')},
+            }
+
+        for stat in enquiry_by_cs:
+            cs_code    = stat['client__client_status'] or 'current'
+            enq_status = (stat['status'] or '').lower()
+            if cs_code in client_status_data and enq_status in ('awarded', 'pending', 'rejected'):
+                client_status_data[cs_code][enq_status]['count'] = stat['count']
+                client_status_data[cs_code][enq_status]['value'] = stat['total_value'] or Decimal('0.00')
+
+        # Compute per-status totals and value %
+        for d in client_status_data.values():
+            d['total_enquiry_count'] = d['awarded']['count'] + d['pending']['count'] + d['rejected']['count']
+            d['total_enquiry_value'] = d['awarded']['value'] + d['pending']['value'] + d['rejected']['value']
+
+        total_all_enquiry_value = sum(d['total_enquiry_value'] for d in client_status_data.values())
+        for d in client_status_data.values():
+            d['pct_value'] = round(
+                float(d['total_enquiry_value']) / float(total_all_enquiry_value) * 100, 1
+            ) if total_all_enquiry_value else 0
+            # Win rate per client status (% of enquiries awarded, by count and by value)
+            tc = d['total_enquiry_count']
+            tv = float(d['total_enquiry_value'])
+            d['awarded_pct_count'] = round(d['awarded']['count'] / tc * 100, 1) if tc else 0
+            d['awarded_pct_value'] = round(float(d['awarded']['value']) / tv * 100, 1) if tv else 0
+
+        active_client_statuses = {k: v for k, v in client_status_data.items() if v['client_count'] > 0}
+        client_status_has_data = bool(active_client_statuses)
+
+        # Chart-ready lists
+        cs_labels        = [v['label']                       for v in active_client_statuses.values()]
+        cs_client_counts = [v['client_count']                for v in active_client_statuses.values()]
+        cs_values        = [float(v['total_enquiry_value'])  for v in active_client_statuses.values()]
+        cs_colors        = [v['color']                       for v in active_client_statuses.values()]
+        cs_total_clients = total_clients
+
         # Generate year range for dropdown
         year_range = range(2020, current_year + 2)
 
@@ -178,6 +359,40 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
             'feedback_data': feedback_data,
             'feedback_total_count': feedback_total_count,
 
+            # Referral data
+            'active_referrals':      active_referrals,
+            'referral_has_data':     referral_has_data,
+            'referral_labels':       referral_labels,
+            'referral_total_counts': referral_total_counts,
+            'referral_total_values': referral_total_values,
+            'referral_colors':       referral_colors,
+
+            # Sector data
+            'active_sectors': active_sectors,
+            'sector_has_data': sector_has_data,
+            'sector_labels':          sector_labels,
+            'sector_awarded_counts':  sector_awarded_counts,
+            'sector_rejected_counts': sector_rejected_counts,
+            'sector_pending_counts':  sector_pending_counts,
+            'sector_awarded_values':  sector_awarded_values,
+            'sector_rejected_values': sector_rejected_values,
+            'sector_pending_values':  sector_pending_values,
+            'sector_total_counts':    sector_total_counts,
+            'sector_total_values':    sector_total_values,
+            'sector_win_pct_count':   sector_win_pct_count,
+            'sector_win_pct_value':   sector_win_pct_value,
+            'sector_chart_colors':    sector_chart_colors,
+
+            # Client status data
+            'active_client_statuses':   active_client_statuses,
+            'client_status_has_data':   client_status_has_data,
+            'cs_labels':          cs_labels,
+            'cs_client_counts':   cs_client_counts,
+            'cs_values':          cs_values,
+            'cs_colors':          cs_colors,
+            'cs_total_clients':   cs_total_clients,
+            'cs_total_value':     total_all_enquiry_value,
+
             # Chart data as JSON-ready values
             'chart_labels': ['Awarded', 'Rejected', 'Pending'],
             'chart_values': [
@@ -201,8 +416,11 @@ class StatisticExplorerPDFView(LoginRequiredMixin, TemplateView):
         context = explorer_view.get_context_data()
 
         # Get section toggles from query params
-        context['show_sales_status'] = request.GET.get('show_sales_status', 'true') == 'true'
-        context['show_feedback'] = request.GET.get('show_feedback', 'true') == 'true'
+        context['show_sales_status']    = request.GET.get('show_sales_status', 'true') == 'true'
+        context['show_feedback']        = request.GET.get('show_feedback', 'true') == 'true'
+        context['show_sector']          = request.GET.get('show_sector', 'true') == 'true'
+        context['show_client_status']   = request.GET.get('show_client_status', 'true') == 'true'
+        context['show_referral']        = request.GET.get('show_referral', 'true') == 'true'
 
         # Render PDF template
         html_string = render_to_string('statistic_explorer_pdf.html', context)

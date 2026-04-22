@@ -18,6 +18,12 @@ class SalesEnquiry(models.Model):
         ('Other', 'Other')
     ]
 
+    REFERRAL_CHOICES = [
+        ('google', 'Google'),
+        ('recommendation', 'Recommendation'),
+        ('other', 'Other'),
+    ]
+
     job_number = models.CharField(max_length=20)
     date = models.DateField(default=timezone.now)
     value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -32,6 +38,14 @@ class SalesEnquiry(models.Model):
         blank=True,
         related_name='sales_enquiries'
     )
+    contact = models.ForeignKey(
+        'clients.Contact',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sales_enquiries'
+    )
+    referral = models.CharField(max_length=20, choices=REFERRAL_CHOICES, blank=True, null=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Pending')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='sales_enquiries')
     created_at = models.DateTimeField(auto_now_add=True)

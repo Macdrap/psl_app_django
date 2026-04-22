@@ -133,7 +133,7 @@
         </div>
         <div class="detail-row">
             <span class="detail-label">Contact:</span>
-            <span class="detail-value">{{ enquiry.client.contact.name }}</span>
+            <span class="detail-value">{{ enquiry.contact.name|default:'' }}</span>
         </div>
         <div class="detail-row">
             <span class="detail-label">Date:</span>

@@ -1,6 +1,7 @@
 from django import forms
 from .models import MonthlyAward
 from sales_tracker.models import SalesEnquiry
+from clients.models import SECTOR_CHOICES, CLIENT_STATUS_CHOICES
 
 
 class MonthlyAwardForm(forms.ModelForm):
@@ -37,16 +38,30 @@ class MonthlyAwardForm(forms.ModelForm):
             'placeholder': 'Enter phone number (optional)',
         })
     )
+    sector = forms.ChoiceField(
+        choices=SECTOR_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-input'}),
+        label='Sector',
+    )
+    client_status = forms.ChoiceField(
+        choices=CLIENT_STATUS_CHOICES,
+        required=False,
+        initial='current',
+        widget=forms.Select(attrs={'class': 'form-input'}),
+        label='Client Status',
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Pre-populate client fields from existing FK
-        if self.instance and self.instance.pk and self.instance.client:
-            client = self.instance.client
-            self.fields['company_name'].initial = client.name
-            self.fields['contact_name'].initial = client.contact.name
-            self.fields['email'].initial = client.contact.email
-            self.fields['phone'].initial = client.contact.phone
+        # Pre-populate client fields from the FKs on the award itself
+        if self.instance and self.instance.pk:
+            if self.instance.client_id:
+                self.fields['company_name'].initial = self.instance.client.name
+            if self.instance.contact_id:
+                self.fields['contact_name'].initial = self.instance.contact.name
+                self.fields['email'].initial = self.instance.contact.email
+                self.fields['phone'].initial = self.instance.contact.phone
 
     class Meta:
         model = MonthlyAward

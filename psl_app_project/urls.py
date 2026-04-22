@@ -26,5 +26,6 @@ urlpatterns = [
     path('sales-tracker', include('sales_tracker.urls')),
     path('monthly-awards', include('monthly_awards.urls')),
     path('invoiced-jobs', include('invoiced_jobs.urls')),
-    path('statistic-explorer', include('statistic_explorer.urls'))
+    path('statistic-explorer', include('statistic_explorer.urls')),
+    path('clients/', include('clients.urls')),
 ]

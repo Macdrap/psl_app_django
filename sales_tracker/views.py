@@ -13,13 +13,14 @@ from django.db.models import Q, Max
 from datetime import datetime
 
 
-def get_or_create_client(company_name, contact_name, email, phone):
+def get_or_create_client(company_name, contact_name, email, phone, sector=None, client_status=None):
     """Find or create Client and Contact records from text inputs.
 
     A Client is looked up by company name alone — no duplicate companies.
     A Contact is scoped to its Client: two different companies can each have
     a 'John Doe', but one company cannot have two 'John Doe' contacts.
-    If the Client already exists its contact details are updated in place.
+    If the contact already exists its details are updated if anything changed.
+    sector and client_status are only applied when a brand-new Client is created.
     """
     from clients.models import Contact, Client
 
@@ -28,22 +29,26 @@ def get_or_create_client(company_name, contact_name, email, phone):
     email = email.strip() if email else None
     phone = phone.strip() if phone else None
 
-    client = Client.objects.filter(name=company_name).first()
+    defaults = {}
+    if sector:
+        defaults['sector'] = sector
+    if client_status:
+        defaults['client_status'] = client_status
 
-    if client:
-        # Client exists — update its contact details if anything changed
-        contact = client.contact
-        if contact.name != contact_name or contact.email != email or contact.phone != phone:
-            contact.name = contact_name
+    client, _ = Client.objects.get_or_create(name=company_name, defaults=defaults)
+
+    contact = Contact.objects.filter(client=client, name=contact_name).first()
+    if contact:
+        if contact.email != email or contact.phone != phone:
             contact.email = email
             contact.phone = phone
             contact.save()
     else:
-        # New company — create a fresh contact and client
-        contact = Contact.objects.create(name=contact_name, email=email, phone=phone)
-        client = Client.objects.create(name=company_name, contact=contact)
+        contact = Contact.objects.create(
+            client=client, name=contact_name, email=email, phone=phone
+        )
 
-    return client
+    return client, contact
 
 
 @login_required
@@ -58,7 +63,8 @@ def sales_tracker(request):
             Q(job_number__icontains=search_query) |
             Q(location__icontains=search_query) |
             Q(client__name__icontains=search_query) |
-            Q(client__contact__name__icontains=search_query)
+            Q(contact__name__icontains=search_query) |
+            Q(contact__email__icontains=search_query)
         )
 
     # Sort by filter
@@ -149,7 +155,18 @@ def add_sales_enquiry(request):
             contact_name = form.cleaned_data['contact_name']
             email = form.cleaned_data.get('email') or None
             phone = form.cleaned_data.get('phone') or None
-            enquiry.client = get_or_create_client(company_name, contact_name, email, phone)
+            sector = form.cleaned_data.get('sector') or None
+            client_status = form.cleaned_data.get('client_status') or None
+            client, contact = get_or_create_client(company_name, contact_name, email, phone, sector, client_status)
+            enquiry.client = client
+            enquiry.contact = contact
+
+            # Referral only applies to new clients
+            referral = form.cleaned_data.get('referral') or None
+            if client_status == 'new' and referral:
+                enquiry.referral = referral
+            else:
+                enquiry.referral = None
 
             enquiry.save()
             messages.success(request, 'Sales enquiry added successfully!')
@@ -216,7 +233,9 @@ def edit_sales_enquiry(request, pk):
             contact_name = form.cleaned_data['contact_name']
             email = form.cleaned_data.get('email') or None
             phone = form.cleaned_data.get('phone') or None
-            updated_enquiry.client = get_or_create_client(company_name, contact_name, email, phone)
+            client, contact = get_or_create_client(company_name, contact_name, email, phone)
+            updated_enquiry.client = client
+            updated_enquiry.contact = contact
             updated_enquiry.save()
 
             from monthly_awards.models import MonthlyAward
@@ -231,6 +250,7 @@ def edit_sales_enquiry(request, pk):
                     job_number=updated_enquiry.job_number,
                     location=updated_enquiry.location,
                     client=updated_enquiry.client,
+                    contact=updated_enquiry.contact,
                     value=updated_enquiry.value,
                     date=timezone.now().date(),
                     created_by=request.user
@@ -306,6 +326,7 @@ def edit_sales_enquiry(request, pk):
                     job_number=updated_enquiry.job_number,
                     location=updated_enquiry.location,
                     client=updated_enquiry.client,
+                    contact=updated_enquiry.contact,
                     value=updated_enquiry.value
                 )
 
@@ -470,7 +491,9 @@ def sales_tracker_poll(request):
         enquiries = enquiries.filter(
             Q(job_number__icontains=search_query) |
             Q(location__icontains=search_query) |
-            Q(client__name__icontains=search_query)
+            Q(client__name__icontains=search_query) |
+            Q(contact__name__icontains=search_query) |
+            Q(contact__email__icontains=search_query)
         )
 
     # Get current count (filtered)
@@ -513,7 +536,8 @@ def sales_tracker_poll(request):
                 Q(job_number__icontains=search_query) |
                 Q(location__icontains=search_query) |
                 Q(client__name__icontains=search_query) |
-                Q(client__contact__name__icontains=search_query)
+                Q(contact__name__icontains=search_query) |
+                Q(contact__email__icontains=search_query)
             )
 
         # Apply sorting - MUST match main view exactly

@@ -1,0 +1,584 @@
+{% extends 'base.html' %}
+
+{% block title %}Clients &amp; Contacts{% endblock %}
+
+{% block content %}
+<style>
+    /* ── Page header ── */
+    .page-header {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .page-header h1 { color: #1f2937; margin: 0; font-size: 1.5rem; }
+    .page-header p  { color: #6b7280; margin: 0.25rem 0 0 0; font-size: 0.9rem; }
+
+    /* ── Buttons ── */
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+        display: inline-block;
+        white-space: nowrap;
+        font-size: 1rem;
+        font-family: inherit;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(88,70,164,0.3); }
+
+    .btn-secondary { background: #e5e7eb; color: #374151; }
+    .btn-secondary:hover { background: #d1d5db; }
+
+    .btn-danger { background: #fee2e2; color: #991b1b; }
+    .btn-danger:hover { background: #fecaca; }
+
+    .btn-success { background: #d1fae5; color: #065f46; }
+    .btn-success:hover { background: #a7f3d0; }
+
+    .btn-sm { padding: 0.35rem 0.8rem; font-size: 0.82rem; }
+
+    /* ── Filters ── */
+    .filters {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .filter-group {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .search-input {
+        padding: 0.5rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+        flex: 1;
+        min-width: 220px;
+        transition: all 0.3s;
+        font-family: inherit;
+    }
+    .search-input:focus {
+        outline: none;
+        border-color: rgb(88,70,164);
+        box-shadow: 0 0 0 3px rgba(88,70,164,0.1);
+    }
+
+    .btn-search {
+        padding: 0.5rem 1.5rem;
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-family: inherit;
+        font-size: 1rem;
+    }
+    .btn-search:hover { opacity: 0.9; }
+
+    .sort-links { display: flex; gap: 0.5rem; }
+
+    .sort-link {
+        padding: 0.4rem 0.9rem;
+        border-radius: 8px;
+        border: 2px solid #e5e7eb;
+        text-decoration: none;
+        color: #374151;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .sort-link.active {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        border-color: transparent;
+    }
+    .sort-link:hover:not(.active) { background: #f3f4f6; border-color: rgb(88,70,164); }
+
+    /* ── Client card list ── */
+    .clients-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .client-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        transition: box-shadow 0.2s;
+    }
+    .client-card:hover { box-shadow: 0 4px 18px rgba(88,70,164,0.13); }
+
+    /* Top bar of each card */
+    .client-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.25rem;
+        background: linear-gradient(135deg, rgba(88,70,164,0.06) 0%, rgba(42,164,176,0.06) 100%);
+        border-bottom: 1px solid #e5e7eb;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .client-card-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .client-card-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .client-card-actions {
+        display: flex;
+        gap: 0.4rem;
+        flex-shrink: 0;
+    }
+
+    /* ── Badges ── */
+    .badge {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+    }
+    .badge-contacts { background: #dbeafe; color: #1e40af; }
+    .badge-enquiry  { background: #ede9fe; color: rgb(88,70,164); }
+    .badge-award    { background: #d1fae5; color: #065f46; }
+
+    /* ── Contacts sub-table ── */
+    .contacts-section {
+        padding: 0.75rem 1.25rem 0.9rem;
+    }
+
+    .contacts-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;   /* fixed layout = columns never shift */
+    }
+
+    .contacts-table col.col-name    { width: 28%; }
+    .contacts-table col.col-email   { width: 30%; }
+    .contacts-table col.col-phone   { width: 20%; }
+    .contacts-table col.col-actions { width: 22%; }
+
+    .contacts-table thead th {
+        background: #f9fafb;
+        color: #6b7280;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .contacts-table td {
+        padding: 0.55rem 0.75rem;
+        border-bottom: 1px solid #f3f4f6;
+        font-size: 0.875rem;
+        color: #374151;
+        vertical-align: middle;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .contacts-table tbody tr:last-child td { border-bottom: none; }
+
+    /* Actions cell — always same width, buttons never wrap */
+    .contacts-table td.td-actions {
+        white-space: nowrap;
+    }
+
+    .contact-actions {
+        display: flex;
+        gap: 0.35rem;
+    }
+
+    /* ── Show more toggle ── */
+    .contacts-toggle-row td {
+        padding: 0 !important;
+        border-bottom: none !important;
+    }
+
+    .contacts-toggle-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: rgb(88,70,164);
+        font-size: 0.8rem;
+        font-weight: 600;
+        font-family: inherit;
+        padding: 0.45rem 0.75rem;
+        border-radius: 6px;
+        transition: background 0.15s;
+        width: 100%;
+        text-align: left;
+    }
+    .contacts-toggle-btn:hover { background: #ede9fe; }
+
+    .toggle-chevron {
+        display: inline-block;
+        transition: transform 0.2s;
+        font-style: normal;
+        line-height: 1;
+    }
+    .toggle-chevron.open { transform: rotate(180deg); }
+
+    .extra-contacts { display: none; }
+    .extra-contacts.open { display: table-row; }
+
+    .no-contacts {
+        color: #9ca3af;
+        font-style: italic;
+        font-size: 0.85rem;
+        padding: 0.4rem 0;
+        display: block;
+    }
+
+    .add-contact-row {
+        margin-top: 0.6rem;
+    }
+
+    /* ── Pagination ── */
+    .pagination-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 1rem;
+    }
+
+    .pagination-container {
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .pagination-info { color: #6b7280; font-size: 0.875rem; }
+
+    .pagination {
+        display: flex;
+        gap: 0.4rem;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        flex-wrap: wrap;
+    }
+
+    .pagination a,
+    .pagination span {
+        padding: 0.45rem 0.7rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        text-decoration: none;
+        color: #374151;
+        transition: all 0.2s;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+    .pagination a:hover { background: #f3f4f6; border-color: rgb(88,70,164); }
+
+    .pagination .current {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        border-color: transparent;
+    }
+    .pagination .disabled { color: #d1d5db; cursor: not-allowed; pointer-events: none; }
+
+    /* ── Empty ── */
+    .empty-state {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        padding: 4rem 2rem;
+        text-align: center;
+        color: #6b7280;
+    }
+    .empty-state p { margin-bottom: 1rem; font-size: 1.1rem; }
+
+    @media (max-width: 768px) {
+        .client-card-header { flex-direction: column; align-items: flex-start; }
+        .contacts-table col.col-email { width: 0; display: none; }
+    }
+</style>
+
+<div class="page-header">
+    <div>
+        <h1>Clients &amp; Contacts</h1>
+        <p>{{ page_obj.paginator.count }} client{{ page_obj.paginator.count|pluralize }} total</p>
+    </div>
+    <a href="{% url 'client_add' %}" class="btn btn-primary">+ Add Client</a>
+</div>
+
+<div class="filters">
+    <form method="get" action="{% url 'clients_list' %}">
+        <div class="filter-group">
+            <span style="font-weight:600; color:#374151; white-space:nowrap;">Sort:</span>
+            <div class="sort-links">
+                <a href="?sort_by=name_asc{% if search_query %}&search={{ search_query }}{% endif %}"
+                   class="sort-link {% if sort_by == 'name_asc' %}active{% endif %}">A &rarr; Z</a>
+                <a href="?sort_by=name_desc{% if search_query %}&search={{ search_query }}{% endif %}"
+                   class="sort-link {% if sort_by == 'name_desc' %}active{% endif %}">Z &rarr; A</a>
+            </div>
+            <input type="hidden" name="sort_by" value="{{ sort_by }}">
+            <input type="text" name="search" value="{{ search_query }}"
+                   placeholder="Search by company, contact, email or phone…"
+                   class="search-input">
+            <button type="submit" class="btn-search">Search</button>
+            {% if search_query %}
+                <a href="{% url 'clients_list' %}?sort_by={{ sort_by }}" class="btn btn-secondary btn-sm">Clear</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+{% if page_obj.has_other_pages %}
+<div class="pagination-card">
+    <div class="pagination-container">
+        <div class="pagination-info">
+            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
+        </div>
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+                <li><a href="?page=1&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">First</a></li>
+                <li><a href="?page={{ page_obj.previous_page_number }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">&lsaquo; Prev</a></li>
+            {% else %}
+                <li><span class="disabled">First</span></li>
+                <li><span class="disabled">&lsaquo; Prev</span></li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li><span class="current">{{ num }}</span></li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li><a href="?page={{ num }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li><a href="?page={{ page_obj.next_page_number }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">Next &rsaquo;</a></li>
+                <li><a href="?page={{ page_obj.paginator.num_pages }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">Last</a></li>
+            {% else %}
+                <li><span class="disabled">Next &rsaquo;</span></li>
+                <li><span class="disabled">Last</span></li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+{% if page_obj %}
+<div class="clients-list">
+    {% for client in page_obj %}
+    <div class="client-card">
+
+        <!-- Client header row -->
+        <div class="client-card-header">
+            <div>
+                <span class="client-card-title">{{ client.name }}</span>
+                <span style="display:block; font-size:0.78rem; color:#6b7280; margin-top:0.2rem;">
+                    {{ client.get_sector_display }} &middot; {{ client.get_client_status_display }}
+                </span>
+            </div>
+            <div class="client-card-meta">
+                <span class="badge badge-contacts">{{ client.contact_count }} contact{{ client.contact_count|pluralize }}</span>
+                {% if client.enquiry_count %}
+                    <span class="badge badge-enquiry">{{ client.enquiry_count }} enquir{{ client.enquiry_count|pluralize:"y,ies" }}</span>
+                {% endif %}
+            </div>
+            <div class="client-card-actions">
+                <a href="{% url 'client_edit' client.pk %}" class="btn btn-secondary btn-sm">Edit</a>
+                <a href="{% url 'client_delete' client.pk %}" class="btn btn-danger btn-sm">Delete</a>
+            </div>
+        </div>
+
+        <!-- Contacts section -->
+        <div class="contacts-section">
+            {% with contacts=client.contacts.all %}
+            {% if contacts %}
+            <table class="contacts-table">
+                <colgroup>
+                    <col class="col-name">
+                    <col class="col-email">
+                    <col class="col-phone">
+                    <col class="col-actions">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Contact</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Always-visible first contact -->
+                    {% with first=contacts.0 %}
+                    <tr class="contact-first-row">
+                        <td>{{ first.name }}</td>
+                        <td>{{ first.email|default:"&mdash;" }}</td>
+                        <td>{{ first.phone|default:"&mdash;" }}</td>
+                        <td class="td-actions">
+                            <div class="contact-actions">
+                                <a href="{% url 'contact_edit' client.pk first.pk %}" class="btn btn-secondary btn-sm">Edit</a>
+                                <a href="{% url 'contact_delete' client.pk first.pk %}" class="btn btn-danger btn-sm">Delete</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endwith %}
+
+                    <!-- Toggle row — only when there are extra contacts -->
+                    {% if contacts|length > 1 %}
+                    <tr class="contacts-toggle-row">
+                        <td colspan="4">
+                            <button type="button"
+                                    class="contacts-toggle-btn"
+                                    data-target="extra-{{ client.pk }}">
+                                <i class="toggle-chevron" id="chevron-{{ client.pk }}">&#9660;</i>
+                                Show {{ contacts|length|add:"-1" }} more contact{{ contacts|length|add:"-1"|pluralize }}
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- Hidden extra contacts -->
+                    {% for contact in contacts %}
+                    {% if not forloop.first %}
+                    <tr class="extra-contacts" data-group="extra-{{ client.pk }}">
+                        <td>{{ contact.name }}</td>
+                        <td>{{ contact.email|default:"&mdash;" }}</td>
+                        <td>{{ contact.phone|default:"&mdash;" }}</td>
+                        <td class="td-actions">
+                            <div class="contact-actions">
+                                <a href="{% url 'contact_edit' client.pk contact.pk %}" class="btn btn-secondary btn-sm">Edit</a>
+                                <a href="{% url 'contact_delete' client.pk contact.pk %}" class="btn btn-danger btn-sm">Delete</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                    {% endif %}
+
+                </tbody>
+            </table>
+            {% else %}
+            <span class="no-contacts">No contacts yet for this client.</span>
+            {% endif %}
+            {% endwith %}
+
+            <div class="add-contact-row">
+                <a href="{% url 'contact_add' client.pk %}" class="btn btn-success btn-sm">+ Add Contact</a>
+            </div>
+        </div>
+
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+    <p>{% if search_query %}No clients match "{{ search_query }}".{% else %}No clients yet.{% endif %}</p>
+    <a href="{% url 'client_add' %}" class="btn btn-primary">+ Add your first client</a>
+</div>
+{% endif %}
+
+{% if page_obj.has_other_pages %}
+<div class="pagination-card">
+    <div class="pagination-container">
+        <div class="pagination-info">
+            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
+        </div>
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+                <li><a href="?page=1&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">First</a></li>
+                <li><a href="?page={{ page_obj.previous_page_number }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">&lsaquo; Prev</a></li>
+            {% else %}
+                <li><span class="disabled">First</span></li>
+                <li><span class="disabled">&lsaquo; Prev</span></li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li><span class="current">{{ num }}</span></li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li><a href="?page={{ num }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li><a href="?page={{ page_obj.next_page_number }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">Next &rsaquo;</a></li>
+                <li><a href="?page={{ page_obj.paginator.num_pages }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">Last</a></li>
+            {% else %}
+                <li><span class="disabled">Next &rsaquo;</span></li>
+                <li><span class="disabled">Last</span></li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+<script>
+document.querySelectorAll('.contacts-toggle-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const target   = btn.getAttribute('data-target');
+        const rows     = document.querySelectorAll(`[data-group="${target}"]`);
+        const chevron  = document.getElementById('chevron-' + target.replace('extra-', ''));
+        const isOpen   = chevron.classList.contains('open');
+
+        rows.forEach(function(row) {
+            row.classList.toggle('open', !isOpen);
+        });
+
+        chevron.classList.toggle('open', !isOpen);
+
+        // Update button label
+        const count = rows.length;
+        if (isOpen) {
+            btn.innerHTML = `<i class="toggle-chevron" id="chevron-${target.replace('extra-', '')}">&#9660;</i> Show ${count} more contact${count === 1 ? '' : 's'}`;
+        } else {
+            btn.innerHTML = `<i class="toggle-chevron open" id="chevron-${target.replace('extra-', '')}">&#9660;</i> Hide ${count} contact${count === 1 ? '' : 's'}`;
+        }
+    });
+});
+</script>
+
+{% endblock %}

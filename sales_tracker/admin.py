@@ -28,9 +28,9 @@ class SalesEnquiryAdmin(admin.ModelAdmin):
     search_fields = [
         'job_number',
         'client__name',
-        'client__contact__name',
-        'client__contact__email',
-        'client__contact__phone',
+        'contact__name',
+        'contact__email',
+        'contact__phone',
         'location'
     ]
 
@@ -49,7 +49,7 @@ class SalesEnquiryAdmin(admin.ModelAdmin):
             'fields': ('job_number', 'date', 'value', 'status')
         }),
         ('Client', {
-            'fields': ('client',)
+            'fields': ('client', 'contact')
         }),
         ('Location', {
             'fields': ('location',)
@@ -69,9 +69,9 @@ class SalesEnquiryAdmin(admin.ModelAdmin):
     get_client_name.admin_order_field = 'client__name'
 
     def get_contact_name(self, obj):
-        return obj.client.contact.name if obj.client else '-'
+        return obj.contact.name if obj.contact else '-'
     get_contact_name.short_description = 'Contact'
-    get_contact_name.admin_order_field = 'client__contact__name'
+    get_contact_name.admin_order_field = 'contact__name'
 
     def save_model(self, request, obj, form, change):
         """Automatically set created_by to current user if creating new enquiry"""

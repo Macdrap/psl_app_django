@@ -403,6 +403,43 @@
             </div>
         </div>
 
+        {% if is_add_form %}
+        <!-- Sector & Status — only relevant when creating a brand-new client -->
+        <div id="new-client-fields" style="border:1px solid #e5e7eb; border-radius:8px; padding:1rem 1.25rem; margin-bottom:1.5rem; background:#f9fafb; display:block;">
+            <p style="font-size:0.82rem; color:#6b7280; margin:0 0 1rem 0;">
+                ℹ️ These fields apply only when the company name is <strong>new</strong>. They are ignored for existing clients.
+            </p>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="{{ form.sector.id_for_label }}" class="required">Sector</label>
+                    {{ form.sector }}
+                    {% if form.sector.errors %}
+                        <div class="error-message">{{ form.sector.errors }}</div>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.client_status.id_for_label }}" class="required">Client Status</label>
+                    {{ form.client_status }}
+                    {% if form.client_status.errors %}
+                        <div class="error-message">{{ form.client_status.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <!-- Referral — only shown when Client Status is "new" -->
+            <div id="referral-field" style="display:none; margin-top:0.75rem;">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="{{ form.referral.id_for_label }}">Referral Source</label>
+                        {{ form.referral }}
+                        {% if form.referral.errors %}
+                            <div class="error-message">{{ form.referral.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="form-sub-header">
             <h2>Optional</h2>
         </div>
@@ -439,6 +476,16 @@
                     {% endif %}
                 </div>
             </div>
+            <!-- Referral Source — always editable on edit form -->
+            <div class="form-grid full-width">
+                <div class="form-group">
+                    <label for="{{ form.referral.id_for_label }}">Referral Source</label>
+                    {{ form.referral }}
+                    {% if form.referral.errors %}
+                        <div class="error-message">{{ form.referral.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
         {% endif %}
 
         <div class="form-actions">
@@ -449,6 +496,190 @@
 </div>
 
 <script>
+// ── Client autocomplete with contact sub-dropdown ───────────────────────────
+(function () {
+    const AUTOCOMPLETE_URL = "{% url 'client_autocomplete' %}";
+    const CONTACTS_API_BASE = "{% url 'client_contacts_api' client_pk=0 %}".replace('0/contacts-api/', '');
+
+    const companyInput  = document.getElementById('{{ form.company_name.id_for_label }}');
+    const contactInput  = document.getElementById('{{ form.contact_name.id_for_label }}');
+    const emailInput    = document.getElementById('{{ form.email.id_for_label }}');
+    const phoneInput    = document.getElementById('{{ form.phone.id_for_label }}');
+
+    if (!companyInput) return;
+
+    // ── Company dropdown
+    const dropdown = document.createElement('div');
+    dropdown.style.cssText = [
+        'position:absolute', 'z-index:9999', 'background:#fff',
+        'border:2px solid rgb(88,70,164)', 'border-radius:8px',
+        'box-shadow:0 8px 24px rgba(0,0,0,0.12)', 'max-height:260px',
+        'overflow-y:auto', 'display:none', 'min-width:100%',
+    ].join(';');
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:relative;';
+    companyInput.parentNode.insertBefore(wrapper, companyInput);
+    wrapper.appendChild(companyInput);
+    wrapper.appendChild(dropdown);
+
+    // ── Contact dropdown
+    const contactDropdown = document.createElement('div');
+    contactDropdown.style.cssText = [
+        'position:absolute', 'z-index:9999', 'background:#fff',
+        'border:2px solid rgb(42,164,176)', 'border-radius:8px',
+        'box-shadow:0 8px 24px rgba(0,0,0,0.12)', 'max-height:200px',
+        'overflow-y:auto', 'display:none', 'min-width:100%',
+    ].join(';');
+
+    const contactWrapper = document.createElement('div');
+    contactWrapper.style.cssText = 'position:relative;';
+    contactInput.parentNode.insertBefore(contactWrapper, contactInput);
+    contactWrapper.appendChild(contactInput);
+    contactWrapper.appendChild(contactDropdown);
+
+    let debounceTimer = null;
+    let activeIndex = -1;
+    let currentResults = [];
+    let selectedClientId = null;
+
+    function renderCompanyDropdown(results) {
+        currentResults = results;
+        activeIndex = -1;
+        dropdown.innerHTML = '';
+
+        if (!results.length) { dropdown.style.display = 'none'; return; }
+
+        results.forEach((c, i) => {
+            const item = document.createElement('div');
+            item.style.cssText = 'padding:0.65rem 1rem;cursor:pointer;border-bottom:1px solid #f3f4f6;';
+            item.innerHTML = `<strong style="color:#1f2937;">${c.name}</strong>` +
+                             `<br><small style="color:#6b7280;">${c.contact_name}` +
+                             (c.phone ? ` · ${c.phone}` : '') + '</small>';
+
+            item.addEventListener('mouseenter', () => highlightCompany(i));
+            item.addEventListener('mouseleave', () => highlightCompany(-1));
+            item.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                selectCompany(i);
+            });
+            dropdown.appendChild(item);
+        });
+
+        dropdown.style.display = 'block';
+    }
+
+    function highlightCompany(index) {
+        dropdown.querySelectorAll('div').forEach((el, i) => {
+            el.style.background = i === index ? '#ede9fe' : '';
+        });
+        activeIndex = index;
+    }
+
+    function selectCompany(index) {
+        const c = currentResults[index];
+        if (!c) return;
+        companyInput.value = c.name;
+        selectedClientId = c.id;
+        closeCompanyDropdown();
+        // Fetch contacts for this client
+        fetchContacts(c.id);
+        // Pre-fill first contact
+        if (c.contact_name) {
+            contactInput.value = c.contact_name;
+            emailInput.value   = c.email;
+            phoneInput.value   = c.phone;
+        }
+        // Hide new-client fields — company already exists
+        const ncf = document.getElementById('new-client-fields');
+        if (ncf) ncf.style.display = 'none';
+    }
+
+    function closeCompanyDropdown() {
+        dropdown.style.display = 'none';
+        activeIndex = -1;
+    }
+
+    function fetchContacts(clientId) {
+        fetch(`${CONTACTS_API_BASE}${clientId}/contacts-api/`)
+            .then(r => r.json())
+            .then(contacts => {
+                if (contacts.length > 1) {
+                    renderContactDropdown(contacts);
+                }
+            })
+            .catch(() => {});
+    }
+
+    function renderContactDropdown(contacts) {
+        contactDropdown.innerHTML = '';
+        contacts.forEach((c, i) => {
+            const item = document.createElement('div');
+            item.style.cssText = 'padding:0.55rem 1rem;cursor:pointer;border-bottom:1px solid #f3f4f6;font-size:0.9rem;';
+            item.innerHTML = `<strong style="color:#1f2937;">${c.name}</strong>` +
+                             (c.email ? `<br><small style="color:#6b7280;">${c.email}` + (c.phone ? ` · ${c.phone}` : '') + '</small>' : '');
+            item.addEventListener('mouseenter', () => { item.style.background = '#ecfdf5'; });
+            item.addEventListener('mouseleave', () => { item.style.background = ''; });
+            item.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                contactInput.value = c.name;
+                emailInput.value   = c.email;
+                phoneInput.value   = c.phone;
+                closeContactDropdown();
+            });
+            contactDropdown.appendChild(item);
+        });
+        contactDropdown.style.display = 'block';
+    }
+
+    function closeContactDropdown() {
+        contactDropdown.style.display = 'none';
+    }
+
+    companyInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        selectedClientId = null;
+        // Show new-client fields again when user edits the company name freely
+        const ncf = document.getElementById('new-client-fields');
+        if (ncf) ncf.style.display = 'block';
+        const q = companyInput.value.trim();
+        if (q.length < 2) { closeCompanyDropdown(); return; }
+
+        debounceTimer = setTimeout(() => {
+            fetch(`${AUTOCOMPLETE_URL}?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(renderCompanyDropdown)
+                .catch(() => closeCompanyDropdown());
+        }, 220);
+    });
+
+    companyInput.addEventListener('keydown', (e) => {
+        const items = dropdown.querySelectorAll('div');
+        if (!items.length) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            highlightCompany(Math.min(activeIndex + 1, items.length - 1));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            highlightCompany(Math.max(activeIndex - 1, 0));
+        } else if (e.key === 'Enter' && activeIndex >= 0) {
+            e.preventDefault();
+            selectCompany(activeIndex);
+        } else if (e.key === 'Escape') {
+            closeCompanyDropdown();
+        }
+    });
+
+    companyInput.addEventListener('blur', () => setTimeout(closeCompanyDropdown, 150));
+    contactInput.addEventListener('blur', () => setTimeout(closeContactDropdown, 150));
+
+    document.addEventListener('click', (e) => {
+        if (!wrapper.contains(e.target)) closeCompanyDropdown();
+        if (!contactWrapper.contains(e.target)) closeContactDropdown();
+    });
+}());
+// ────────────────────────────────────────────────────────────────────────────
+
     {% if not is_add_form %}
     // Store original status when page loads
     const originalStatus = '{{ enquiry.status }}';
@@ -553,6 +784,25 @@
             mainForm.appendChild(input);
         }
     });
+    {% endif %}
+
+    // Referral show/hide — add form only, based on client_status select
+    {% if is_add_form %}
+    (function() {
+        const clientStatusSelect = document.getElementById('{{ form.client_status.id_for_label }}');
+        const referralField = document.getElementById('referral-field');
+
+        function toggleReferral() {
+            if (clientStatusSelect && referralField) {
+                referralField.style.display = clientStatusSelect.value === 'new' ? 'block' : 'none';
+            }
+        }
+
+        if (clientStatusSelect) {
+            clientStatusSelect.addEventListener('change', toggleReferral);
+            toggleReferral();
+        }
+    })();
     {% endif %}
 
     // Feedback "Other" toggle

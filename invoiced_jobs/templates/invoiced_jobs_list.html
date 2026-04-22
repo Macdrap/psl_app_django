@@ -731,16 +731,16 @@
                 <td><strong>{{ job.award.job_number }}</strong></td>
                 <td>
                     <strong>{{ job.award.client.name }}</strong><br>
-                    <small style="color: #6b7280;">{{ job.award.client.contact.name|truncatewords:8 }}</small>
+                    <small style="color: #6b7280;">{{ job.award.contact.name|default:''|truncatewords:8 }}</small>
                     {% if job.has_mismatch %}
                         <div class="mismatch-details">
                             ⚠️ Mismatch: £{{ job.total_invoiced|floatformat:2 }} / £{{ job.award_total|floatformat:2 }}
                         </div>
                     {% endif %}
                 </td>
-                <td><strong>{{ job.award.client.contact.name }}</strong></td>
-                <td><strong>{{ job.award.client.contact.phone }}</strong></td>
-                <td><strong>{{ job.award.client.contact.email }}</strong></td>
+                <td><strong>{{ job.award.contact.name|default:'' }}</strong></td>
+                <td><strong>{{ job.award.contact.phone|default:'' }}</strong></td>
+                <td><strong>{{ job.award.contact.email|default:'' }}</strong></td>
                 <td>
                     {% if job.description %}
                         <div class="description-text" title="{{ job.description }}">

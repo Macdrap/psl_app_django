@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ action }} Client{% endblock %}
+
+{% block content %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+        padding: 2.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .form-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .form-header h1 { color: #1f2937; margin-bottom: 0.5rem; }
+    .form-header p { color: #6b7280; }
+
+    .section-header {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        padding: 0.75rem 1.25rem;
+        border-radius: 8px;
+        margin: 1.5rem 0 1.25rem;
+        font-weight: 600;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        margin-bottom: 0.5rem;
+        color: #374151;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.3s;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: rgb(88,70,164);
+        box-shadow: 0 0 0 3px rgba(88,70,164,0.1);
+    }
+
+    .error-message {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .required::after { content: " *"; color: #ef4444; }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 2px solid #e5e7eb;
+    }
+
+    .btn {
+        padding: 0.875rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: none;
+        text-decoration: none;
+        display: inline-block;
+        font-family: inherit;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, rgb(88,70,164) 0%, rgb(42,164,176) 100%);
+        color: white;
+        flex: 1;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(88,70,164,0.3);
+    }
+
+    .btn-secondary { background: #e5e7eb; color: #374151; }
+    .btn-secondary:hover { background: #d1d5db; }
+</style>
+
+<div class="form-container">
+    <div class="form-header">
+        <h1>{{ action }} Client</h1>
+        <p>{% if action == 'Add' %}Create a new client. You can add contacts after saving.{% else %}Update the client name.{% endif %}</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="section-header">Company</div>
+
+        <div class="form-group">
+            <label for="{{ form.company_name.id_for_label }}" class="required">Company Name</label>
+            {{ form.company_name }}
+            {% if form.company_name.errors %}
+                <div class="error-message">{{ form.company_name.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.sector.id_for_label }}" class="required">Sector</label>
+            {{ form.sector }}
+            {% if form.sector.errors %}
+                <div class="error-message">{{ form.sector.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.client_status.id_for_label }}" class="required">Client Status</label>
+            {{ form.client_status }}
+            {% if form.client_status.errors %}
+                <div class="error-message">{{ form.client_status.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ action }} Client</button>
+            <a href="{% url 'clients_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -24,6 +24,13 @@ class MonthlyAward(models.Model):
         blank=True,
         related_name='monthly_awards'
     )
+    contact = models.ForeignKey(
+        'clients.Contact',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='monthly_awards'
+    )
     value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     # Date awarded

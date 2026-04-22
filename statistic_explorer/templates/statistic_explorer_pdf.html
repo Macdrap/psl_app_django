@@ -126,6 +126,7 @@
         }
 
         .breakdown-table .status-awarded { color: #10b981; font-weight: 600; }
+        .breakdown-table .status-pending { color: #f59e0b; font-weight: 600; }
         .breakdown-table .status-rejected { color: #ef4444; font-weight: 600; }
         .breakdown-table .status-pending { color: #f59e0b; font-weight: 600; }
         .breakdown-table .status-timeframe { color: #3b82f6; font-weight: 600; }
@@ -198,32 +199,7 @@
     </div>
 
     {% if show_sales_status %}
-    <!-- Summary Stats -->
-    <div class="section">
-        <div class="section-title">Summary Overview</div>
-        <div class="stats-grid">
-            <div class="stats-row">
-                <div class="stat-card">
-                    <div class="label">Total Quotes</div>
-                    <div class="value">{{ sales_total_count }}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="label">Total Value</div>
-                    <div class="value">£{{ sales_total_value|floatformat:2 }}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="label">Win Rate</div>
-                    <div class="value green">{{ sales_data.awarded.percentage }}%</div>
-                </div>
-                <div class="stat-card">
-                    <div class="label">Rejection Rate</div>
-                    <div class="value red">{{ sales_data.rejected.percentage }}%</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Status Breakdown -->
+    <!-- Sales Enquiries by Status -->
     <div class="section">
         <div class="section-title">Sales Enquiries by Status</div>
         <table class="breakdown-table">
@@ -231,43 +207,39 @@
                 <tr>
                     <th>Status</th>
                     <th>Count</th>
+                    <th>% of Enquiries</th>
                     <th>Value</th>
-                    <th>Percentage</th>
+                    <th>% of Value</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>
-                        <span class="color-indicator color-awarded"></span>
-                        <span class="status-awarded">Awarded</span>
-                    </td>
+                    <td><span class="color-indicator color-awarded"></span><span class="status-awarded">Awarded</span></td>
                     <td>{{ sales_data.awarded.count }}</td>
-                    <td>£{{ sales_data.awarded.value|floatformat:2 }}</td>
                     <td>{{ sales_data.awarded.percentage }}%</td>
+                    <td>£{{ sales_data.awarded.value|floatformat:2 }}</td>
+                    <td>{{ sales_data.awarded.value_percentage }}%</td>
                 </tr>
                 <tr>
-                    <td>
-                        <span class="color-indicator color-rejected"></span>
-                        <span class="status-rejected">Rejected</span>
-                    </td>
+                    <td><span class="color-indicator color-rejected"></span><span class="status-rejected">Rejected</span></td>
                     <td>{{ sales_data.rejected.count }}</td>
-                    <td>£{{ sales_data.rejected.value|floatformat:2 }}</td>
                     <td>{{ sales_data.rejected.percentage }}%</td>
+                    <td>£{{ sales_data.rejected.value|floatformat:2 }}</td>
+                    <td>{{ sales_data.rejected.value_percentage }}%</td>
                 </tr>
                 <tr>
-                    <td>
-                        <span class="color-indicator color-pending"></span>
-                        <span class="status-pending">Pending</span>
-                    </td>
+                    <td><span class="color-indicator color-pending"></span><span class="status-pending">Pending</span></td>
                     <td>{{ sales_data.pending.count }}</td>
-                    <td>£{{ sales_data.pending.value|floatformat:2 }}</td>
                     <td>{{ sales_data.pending.percentage }}%</td>
+                    <td>£{{ sales_data.pending.value|floatformat:2 }}</td>
+                    <td>{{ sales_data.pending.value_percentage }}%</td>
                 </tr>
             </tbody>
             <tfoot>
                 <tr>
                     <td><strong>Total</strong></td>
                     <td><strong>{{ sales_total_count }}</strong></td>
+                    <td><strong>100%</strong></td>
                     <td><strong>£{{ sales_total_value|floatformat:2 }}</strong></td>
                     <td><strong>100%</strong></td>
                 </tr>
@@ -329,6 +301,116 @@
                     <td><strong>100%</strong></td>
                 </tr>
             </tfoot>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if show_sector and sector_has_data %}
+    <!-- Sector Breakdown -->
+    <div class="section">
+        <div class="section-title">Sector Analysis</div>
+        <table class="breakdown-table">
+            <thead>
+                <tr>
+                    <th>Sector</th>
+                    <th>Total Enquiries</th>
+                    <th>% of All</th>
+                    <th>Win Rate (Count)</th>
+                    <th>Total Value</th>
+                    <th>% of Total Value</th>
+                    <th>Win Rate (Value)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for code, data in active_sectors.items %}
+                <tr>
+                    <td><strong>{{ data.label }}</strong></td>
+                    <td>{{ data.total_count }}</td>
+                    <td>{{ data.pct_of_all_count }}%</td>
+                    <td class="status-awarded">{{ data.awarded.pct_count }}% awarded</td>
+                    <td>£{{ data.total_value|floatformat:2 }}</td>
+                    <td>{{ data.pct_of_all_value }}%</td>
+                    <td class="status-awarded">{{ data.awarded.pct_value }}% awarded</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if show_client_status and client_status_has_data %}
+    <!-- Client status analysis -->
+    <div class="section">
+        <div class="section-title">Client Status Analysis</div>
+        <table class="breakdown-table">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Clients</th>
+                    <th>% of All Clients</th>
+                    <th>Win Rate (Count)</th>
+                    <th>Total Value</th>
+                    <th>% of Total Value</th>
+                    <th>Win Rate (Value)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for code, data in active_client_statuses.items %}
+                <tr>
+                    <td><strong>{{ data.label }}</strong></td>
+                    <td>{{ data.client_count }}</td>
+                    <td>{{ data.pct_clients }}%</td>
+                    <td class="status-awarded">{{ data.awarded_pct_count }}% awarded</td>
+                    <td>£{{ data.total_enquiry_value|floatformat:2 }}</td>
+                    <td>{{ data.pct_value }}%</td>
+                    <td class="status-awarded">{{ data.awarded_pct_value }}% awarded</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td><strong>Total</strong></td>
+                    <td><strong>{{ cs_total_clients }}</strong></td>
+                    <td><strong>100%</strong></td>
+                    <td></td>
+                    <td><strong>£{{ cs_total_value|floatformat:2 }}</strong></td>
+                    <td><strong>100%</strong></td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if show_referral and referral_has_data %}
+    <!-- Referral Analysis -->
+    <div class="section">
+        <div class="section-title">Referral Analysis</div>
+        <table class="breakdown-table">
+            <thead>
+                <tr>
+                    <th>Referral Source</th>
+                    <th>Total Enquiries</th>
+                    <th>% of All</th>
+                    <th>Win Rate (Count)</th>
+                    <th>Total Value</th>
+                    <th>% of Total Value</th>
+                    <th>Win Rate (Value)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for code, data in active_referrals.items %}
+                <tr>
+                    <td><strong>{{ data.label }}</strong></td>
+                    <td>{{ data.total_count }}</td>
+                    <td>{{ data.pct_of_all_count }}%</td>
+                    <td class="status-awarded">{{ data.awarded.pct_count }}% awarded</td>
+                    <td>£{{ data.total_value|floatformat:2 }}</td>
+                    <td>{{ data.pct_of_all_value }}%</td>
+                    <td class="status-awarded">{{ data.awarded.pct_value }}% awarded</td>
+                </tr>
+                {% endfor %}
+            </tbody>
         </table>
     </div>
     {% endif %}

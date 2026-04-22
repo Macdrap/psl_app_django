@@ -440,6 +440,18 @@
             <input type="checkbox" id="toggle-feedback" checked>
             <label for="toggle-feedback">Feedback Analysis</label>
         </div>
+        <div class="toggle-item">
+            <input type="checkbox" id="toggle-sector" checked>
+            <label for="toggle-sector">Sector Analysis</label>
+        </div>
+        <div class="toggle-item">
+            <input type="checkbox" id="toggle-client-status" checked>
+            <label for="toggle-client-status">Client Status Analysis</label>
+        </div>
+        <div class="toggle-item">
+            <input type="checkbox" id="toggle-referral" checked>
+            <label for="toggle-referral">Referral Analysis</label>
+        </div>
     </div>
 </div>
 
@@ -512,39 +524,76 @@
     </div>
 
     {% if sales_total_count > 0 %}
-    <div class="chart-container">
-        <div class="chart-wrapper">
-            <canvas id="salesChart"></canvas>
+    <div style="display:flex; gap:3rem; flex-wrap:wrap; justify-content:center; align-items:flex-start;">
+
+        <!-- Left: by count -->
+        <div style="flex:1; min-width:280px; display:flex; flex-direction:column; align-items:center;">
+            <h3 style="color:#1f2937; font-size:1rem; margin-bottom:1.25rem; text-align:center;">Enquiries by Status</h3>
+            <div class="chart-wrapper">
+                <canvas id="salesChart"></canvas>
+            </div>
+            <div class="chart-legend" style="margin-top:1.5rem; width:100%;">
+                <div class="legend-item">
+                    <div class="legend-color awarded"></div>
+                    <div class="legend-info">
+                        <div class="legend-label">Awarded</div>
+                        <div class="legend-value">{{ sales_data.awarded.percentage }}% of total</div>
+                    </div>
+                    <div class="legend-count">{{ sales_data.awarded.count }}</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color rejected"></div>
+                    <div class="legend-info">
+                        <div class="legend-label">Rejected</div>
+                        <div class="legend-value">{{ sales_data.rejected.percentage }}% of total</div>
+                    </div>
+                    <div class="legend-count">{{ sales_data.rejected.count }}</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color pending"></div>
+                    <div class="legend-info">
+                        <div class="legend-label">Pending</div>
+                        <div class="legend-value">{{ sales_data.pending.percentage }}% of total</div>
+                    </div>
+                    <div class="legend-count">{{ sales_data.pending.count }}</div>
+                </div>
+            </div>
         </div>
 
-        <div class="chart-legend">
-            <div class="legend-item">
-                <div class="legend-color awarded"></div>
-                <div class="legend-info">
-                    <div class="legend-label">Awarded</div>
-                    <div class="legend-value">£{{ sales_data.awarded.value|floatformat:2 }}</div>
-                </div>
-                <div class="legend-count">{{ sales_data.awarded.count }}</div>
+        <!-- Right: by value -->
+        <div style="flex:1; min-width:280px; display:flex; flex-direction:column; align-items:center;">
+            <h3 style="color:#1f2937; font-size:1rem; margin-bottom:1.25rem; text-align:center;">Value by Status</h3>
+            <div class="chart-wrapper">
+                <canvas id="salesValueChart"></canvas>
             </div>
-
-            <div class="legend-item">
-                <div class="legend-color rejected"></div>
-                <div class="legend-info">
-                    <div class="legend-label">Rejected</div>
-                    <div class="legend-value">£{{ sales_data.rejected.value|floatformat:2 }}</div>
+            <div class="chart-legend" style="margin-top:1.5rem; width:100%;">
+                <div class="legend-item">
+                    <div class="legend-color awarded"></div>
+                    <div class="legend-info">
+                        <div class="legend-label">Awarded</div>
+                        <div class="legend-value">£{{ sales_data.awarded.value|floatformat:2 }} · {{ sales_data.awarded.value_percentage }}% of total</div>
+                    </div>
+                    <div class="legend-count" style="font-size:1rem;">{{ sales_data.awarded.value_percentage }}%</div>
                 </div>
-                <div class="legend-count">{{ sales_data.rejected.count }}</div>
-            </div>
-
-            <div class="legend-item">
-                <div class="legend-color pending"></div>
-                <div class="legend-info">
-                    <div class="legend-label">Pending</div>
-                    <div class="legend-value">£{{ sales_data.pending.value|floatformat:2 }}</div>
+                <div class="legend-item">
+                    <div class="legend-color rejected"></div>
+                    <div class="legend-info">
+                        <div class="legend-label">Rejected</div>
+                        <div class="legend-value">£{{ sales_data.rejected.value|floatformat:2 }} · {{ sales_data.rejected.value_percentage }}% of total</div>
+                    </div>
+                    <div class="legend-count" style="font-size:1rem;">{{ sales_data.rejected.value_percentage }}%</div>
                 </div>
-                <div class="legend-count">{{ sales_data.pending.count }}</div>
+                <div class="legend-item">
+                    <div class="legend-color pending"></div>
+                    <div class="legend-info">
+                        <div class="legend-label">Pending</div>
+                        <div class="legend-value">£{{ sales_data.pending.value|floatformat:2 }} · {{ sales_data.pending.value_percentage }}% of total</div>
+                    </div>
+                    <div class="legend-count" style="font-size:1rem;">{{ sales_data.pending.value_percentage }}%</div>
+                </div>
             </div>
         </div>
+
     </div>
 
     <div class="summary-row">
@@ -661,6 +710,186 @@
     {% endif %}
 </div>
 
+<!-- ── Sector Analysis (both charts in one section) ───────────────────── -->
+<div class="chart-section" id="sector-section">
+    <div class="chart-header">
+        <h2>Sector Analysis</h2>
+        <span class="filter-badge">{{ filter_description }}</span>
+    </div>
+
+    {% if sector_has_data %}
+    <div style="display:flex; gap:3rem; flex-wrap:wrap; justify-content:center; align-items:flex-start;">
+
+        <!-- Left: enquiries by count -->
+        <div style="flex:1; min-width:280px; display:flex; flex-direction:column; align-items:center;">
+            <h3 style="color:#1f2937; font-size:1rem; margin-bottom:1.25rem; text-align:center;">Enquiries by Sector</h3>
+            <div class="chart-wrapper">
+                <canvas id="sectorCountChart"></canvas>
+            </div>
+            <div class="chart-legend" style="margin-top:1.5rem; width:100%;">
+                {% for code, data in active_sectors.items %}
+                <div class="legend-item">
+                    <div class="legend-color" style="background:{{ data.color }};"></div>
+                    <div class="legend-info">
+                        <div class="legend-label">{{ data.label }}</div>
+                        <div class="legend-value">{{ data.total_count }} enquiries</div>
+                    </div>
+                    <div class="legend-count" style="font-size:1rem; color:#10b981;">{{ data.awarded.pct_count }}%<br><span style="font-size:0.65rem; color:#6b7280; font-weight:400;">awarded</span></div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Right: enquiries by value -->
+        <div style="flex:1; min-width:280px; display:flex; flex-direction:column; align-items:center;">
+            <h3 style="color:#1f2937; font-size:1rem; margin-bottom:1.25rem; text-align:center;">Value by Sector</h3>
+            <div class="chart-wrapper">
+                <canvas id="sectorValueChart"></canvas>
+            </div>
+            <div class="chart-legend" style="margin-top:1.5rem; width:100%;">
+                {% for code, data in active_sectors.items %}
+                <div class="legend-item">
+                    <div class="legend-color" style="background:{{ data.color }};"></div>
+                    <div class="legend-info">
+                        <div class="legend-label">{{ data.label }}</div>
+                        <div class="legend-value">£{{ data.total_value|floatformat:0 }} · {{ data.pct_of_all_value }}% of total</div>
+                    </div>
+                    <div class="legend-count" style="font-size:1rem; color:#10b981;">{{ data.awarded.pct_value }}%<br><span style="font-size:0.65rem; color:#6b7280; font-weight:400;">awarded</span></div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+    {% else %}
+    <div class="no-data">
+        <div class="no-data-icon">🏢</div>
+        <h3>No sector data available</h3>
+        <p>No enquiries with linked clients found for the selected period.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ── Client Status Analysis ─────────────────────────────────────────── -->
+<div class="chart-section" id="client-status-section">
+    <div class="chart-header">
+        <h2>Client Status Analysis</h2>
+        <span class="filter-badge">{{ filter_description }}</span>
+    </div>
+
+    {% if client_status_has_data %}
+    <div style="display:flex; gap:3rem; flex-wrap:wrap; justify-content:center; align-items:flex-start;">
+
+        <!-- Left: % of clients by status -->
+        <div style="flex:1; min-width:280px; display:flex; flex-direction:column; align-items:center;">
+            <h3 style="color:#1f2937; font-size:1rem; margin-bottom:1.25rem; text-align:center;">Clients by Status</h3>
+            <div class="chart-wrapper">
+                <canvas id="clientStatusCountChart"></canvas>
+            </div>
+            <div class="chart-legend" style="margin-top:1.5rem; width:100%;">
+                {% for code, data in active_client_statuses.items %}
+                <div class="legend-item">
+                    <div class="legend-color" style="background:{{ data.color }};"></div>
+                    <div class="legend-info">
+                        <div class="legend-label">{{ data.label }}</div>
+                        <div class="legend-value">{{ data.pct_clients }}% of all clients</div>
+                    </div>
+                    <div class="legend-count" style="font-size:1rem; color:#10b981;">{{ data.awarded_pct_count }}%<br><span style="font-size:0.65rem; color:#6b7280; font-weight:400;">awarded</span></div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Right: % of total value by status -->
+        <div style="flex:1; min-width:280px; display:flex; flex-direction:column; align-items:center;">
+            <h3 style="color:#1f2937; font-size:1rem; margin-bottom:1.25rem; text-align:center;">Value by Status</h3>
+            <div class="chart-wrapper">
+                <canvas id="clientStatusValueChart"></canvas>
+            </div>
+            <div class="chart-legend" style="margin-top:1.5rem; width:100%;">
+                {% for code, data in active_client_statuses.items %}
+                <div class="legend-item">
+                    <div class="legend-color" style="background:{{ data.color }};"></div>
+                    <div class="legend-info">
+                        <div class="legend-label">{{ data.label }}</div>
+                        <div class="legend-value">£{{ data.total_enquiry_value|floatformat:0 }} · {{ data.pct_value }}% of total</div>
+                    </div>
+                    <div class="legend-count" style="font-size:1rem; color:#10b981;">{{ data.awarded_pct_value }}%<br><span style="font-size:0.65rem; color:#6b7280; font-weight:400;">awarded</span></div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+    {% else %}
+    <div class="no-data">
+        <div class="no-data-icon">👥</div>
+        <h3>No client status data available</h3>
+        <p>No clients found.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ── Referral Analysis ──────────────────────────────────────────────────── -->
+<div class="chart-section" id="referral-section">
+    <div class="chart-header">
+        <h2>Referral Analysis</h2>
+        <span class="filter-badge">{{ filter_description }}</span>
+    </div>
+
+    {% if referral_has_data %}
+    <div style="display:flex; gap:3rem; flex-wrap:wrap; justify-content:center; align-items:flex-start;">
+
+        <!-- Left: enquiries by count -->
+        <div style="flex:1; min-width:280px; display:flex; flex-direction:column; align-items:center;">
+            <h3 style="color:#1f2937; font-size:1rem; margin-bottom:1.25rem; text-align:center;">Enquiries by Referral</h3>
+            <div class="chart-wrapper">
+                <canvas id="referralCountChart"></canvas>
+            </div>
+            <div class="chart-legend" style="margin-top:1.5rem; width:100%;">
+                {% for code, data in active_referrals.items %}
+                <div class="legend-item">
+                    <div class="legend-color" style="background:{{ data.color }};"></div>
+                    <div class="legend-info">
+                        <div class="legend-label">{{ data.label }}</div>
+                        <div class="legend-value">{{ data.total_count }} enquiries</div>
+                    </div>
+                    <div class="legend-count" style="font-size:1rem; color:#10b981;">{{ data.awarded.pct_count }}%<br><span style="font-size:0.65rem; color:#6b7280; font-weight:400;">awarded</span></div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Right: enquiries by value -->
+        <div style="flex:1; min-width:280px; display:flex; flex-direction:column; align-items:center;">
+            <h3 style="color:#1f2937; font-size:1rem; margin-bottom:1.25rem; text-align:center;">Value by Referral</h3>
+            <div class="chart-wrapper">
+                <canvas id="referralValueChart"></canvas>
+            </div>
+            <div class="chart-legend" style="margin-top:1.5rem; width:100%;">
+                {% for code, data in active_referrals.items %}
+                <div class="legend-item">
+                    <div class="legend-color" style="background:{{ data.color }};"></div>
+                    <div class="legend-info">
+                        <div class="legend-label">{{ data.label }}</div>
+                        <div class="legend-value">£{{ data.total_value|floatformat:0 }} · {{ data.pct_of_all_value }}% of total</div>
+                    </div>
+                    <div class="legend-count" style="font-size:1rem; color:#10b981;">{{ data.awarded.pct_value }}%<br><span style="font-size:0.65rem; color:#6b7280; font-weight:400;">awarded</span></div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+    {% else %}
+    <div class="no-data">
+        <div class="no-data-icon">🔗</div>
+        <h3>No referral data available</h3>
+        <p>No referral sources have been recorded for new clients in the selected period.</p>
+    </div>
+    {% endif %}
+</div>
+
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -680,68 +909,85 @@
 
     // Section visibility toggles
     const toggleSalesStatus = document.getElementById('toggle-sales-status');
-    const toggleFeedback = document.getElementById('toggle-feedback');
-    const salesStatusSection = document.getElementById('sales-status-section');
-    const feedbackSection = document.getElementById('feedback-section');
+    const toggleFeedback    = document.getElementById('toggle-feedback');
+    const toggleSector        = document.getElementById('toggle-sector');
+    const toggleClientStatus  = document.getElementById('toggle-client-status');
+    const toggleReferral      = document.getElementById('toggle-referral');
 
-    toggleSalesStatus.addEventListener('change', function() {
-        if (this.checked) {
-            salesStatusSection.classList.remove('hidden');
-        } else {
-            salesStatusSection.classList.add('hidden');
-        }
-    });
-
-    toggleFeedback.addEventListener('change', function() {
-        if (this.checked) {
-            feedbackSection.classList.remove('hidden');
-        } else {
-            feedbackSection.classList.add('hidden');
-        }
-    });
+    function bindToggle(checkbox, sectionId) {
+        const section = document.getElementById(sectionId);
+        checkbox.addEventListener('change', function() {
+            section.classList.toggle('hidden', !this.checked);
+        });
+    }
+    bindToggle(toggleSalesStatus,  'sales-status-section');
+    bindToggle(toggleFeedback,     'feedback-section');
+    bindToggle(toggleSector,       'sector-section');
+    bindToggle(toggleClientStatus, 'client-status-section');
+    bindToggle(toggleReferral,     'referral-section');
 
     // PDF Export with selected sections
     document.getElementById('exportPdfBtn').addEventListener('click', function() {
         const urlParams = new URLSearchParams(window.location.search);
-        urlParams.set('show_sales_status', toggleSalesStatus.checked);
-        urlParams.set('show_feedback', toggleFeedback.checked);
+        urlParams.set('show_sales_status',  toggleSalesStatus.checked);
+        urlParams.set('show_feedback',      toggleFeedback.checked);
+        urlParams.set('show_sector',        toggleSector.checked);
+        urlParams.set('show_client_status', toggleClientStatus.checked);
+        urlParams.set('show_referral',      toggleReferral.checked);
 
         const exportUrl = '{% url "statistic_explorer_pdf" %}?' + urlParams.toString();
         window.open(exportUrl, '_blank');
     });
 
     {% if sales_total_count > 0 %}
-    // Sales Doughnut Chart
-    const salesCtx = document.getElementById('salesChart').getContext('2d');
-    new Chart(salesCtx, {
+    const salesColors  = ['#10b981', '#ef4444', '#f59e0b'];
+    const salesLabels  = ['Awarded', 'Rejected', 'Pending'];
+    const salesCounts  = [{{ sales_data.awarded.count }}, {{ sales_data.rejected.count }}, {{ sales_data.pending.count }}];
+    const salesValues  = [{{ sales_data.awarded.value }}, {{ sales_data.rejected.value }}, {{ sales_data.pending.value }}];
+
+    const salesDoughnutOpts = {
+        responsive: true,
+        maintainAspectRatio: true,
+        cutout: '60%',
+        plugins: { legend: { display: false } }
+    };
+
+    // Count doughnut
+    new Chart(document.getElementById('salesChart').getContext('2d'), {
         type: 'doughnut',
-        data: {
-            labels: ['Awarded', 'Rejected', 'Pending'],
-            datasets: [{
-                data: [
-                    {{ sales_data.awarded.count }},
-                    {{ sales_data.rejected.count }},
-                    {{ sales_data.pending.count }}
-                ],
-                backgroundColor: ['#10b981', '#ef4444', '#f59e0b'],
-                borderWidth: 0,
-                hoverOffset: 10
-            }]
-        },
+        data: { labels: salesLabels, datasets: [{ data: salesCounts, backgroundColor: salesColors, borderWidth: 0, hoverOffset: 10 }] },
         options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            cutout: '60%',
+            ...salesDoughnutOpts,
             plugins: {
-                legend: {
-                    display: false
-                },
+                ...salesDoughnutOpts.plugins,
                 tooltip: {
                     callbacks: {
                         label: function(context) {
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((context.raw / total) * 100).toFixed(1);
-                            return `${context.label}: ${context.raw} (${percentage}%)`;
+                            const pct = ((context.raw / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.raw} enquiries (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Value doughnut
+    new Chart(document.getElementById('salesValueChart').getContext('2d'), {
+        type: 'doughnut',
+        data: { labels: salesLabels, datasets: [{ data: salesValues, backgroundColor: salesColors, borderWidth: 0, hoverOffset: 10 }] },
+        options: {
+            ...salesDoughnutOpts,
+            plugins: {
+                ...salesDoughnutOpts.plugins,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = ((context.raw / total) * 100).toFixed(1);
+                            const fmt = v => '£' + v.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
+                            return `${context.label}: ${fmt(context.raw)} (${pct}%)`;
                         }
                     }
                 }
@@ -774,15 +1020,200 @@
             maintainAspectRatio: true,
             cutout: '60%',
             plugins: {
-                legend: {
-                    display: false
-                },
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((context.raw / total) * 100).toFixed(1);
-                            return `${context.label}: ${context.raw} (${percentage}%)`;
+                            const pct = ((context.raw / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.raw} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    {% if sector_has_data %}
+    const sectorLabels      = {{ sector_labels|safe }};
+    const sectorTotalCounts = {{ sector_total_counts|safe }};
+    const sectorTotalValues = {{ sector_total_values|safe }};
+    const sectorColors      = {{ sector_chart_colors|safe }};
+
+    const doughnutDefaults = {
+        responsive: true,
+        maintainAspectRatio: true,
+        cutout: '60%',
+        plugins: { legend: { display: false } }
+    };
+
+    // ── Sector Count Doughnut ─────────────────────────────────────────────
+    new Chart(document.getElementById('sectorCountChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: sectorLabels,
+            datasets: [{ data: sectorTotalCounts, backgroundColor: sectorColors, borderWidth: 0, hoverOffset: 10 }]
+        },
+        options: {
+            ...doughnutDefaults,
+            plugins: {
+                ...doughnutDefaults.plugins,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct   = ((context.raw / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.raw} enquiries (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // ── Sector Value Doughnut ─────────────────────────────────────────────
+    new Chart(document.getElementById('sectorValueChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: sectorLabels,
+            datasets: [{ data: sectorTotalValues, backgroundColor: sectorColors, borderWidth: 0, hoverOffset: 10 }]
+        },
+        options: {
+            ...doughnutDefaults,
+            plugins: {
+                ...doughnutDefaults.plugins,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct   = ((context.raw / total) * 100).toFixed(1);
+                            const fmt   = v => '£' + v.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
+                            return `${context.label}: ${fmt(context.raw)} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    {% if client_status_has_data %}
+    const csLabels       = {{ cs_labels|safe }};
+    const csClientCounts = {{ cs_client_counts|safe }};
+    const csValues       = {{ cs_values|safe }};
+    const csColors       = {{ cs_colors|safe }};
+
+    const csDoughnutOpts = {
+        responsive: true,
+        maintainAspectRatio: true,
+        cutout: '60%',
+        plugins: { legend: { display: false } }
+    };
+
+    // Client Status — clients by status doughnut
+    new Chart(document.getElementById('clientStatusCountChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: csLabels,
+            datasets: [{ data: csClientCounts, backgroundColor: csColors, borderWidth: 0, hoverOffset: 10 }]
+        },
+        options: {
+            ...csDoughnutOpts,
+            plugins: {
+                ...csDoughnutOpts.plugins,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct   = ((context.raw / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.raw} clients (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Client Status — enquiry value by status doughnut
+    new Chart(document.getElementById('clientStatusValueChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: csLabels,
+            datasets: [{ data: csValues, backgroundColor: csColors, borderWidth: 0, hoverOffset: 10 }]
+        },
+        options: {
+            ...csDoughnutOpts,
+            plugins: {
+                ...csDoughnutOpts.plugins,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct   = ((context.raw / total) * 100).toFixed(1);
+                            const fmt   = v => '£' + v.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
+                            return `${context.label}: ${fmt(context.raw)} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    {% if referral_has_data %}
+    const referralLabels      = {{ referral_labels|safe }};
+    const referralTotalCounts = {{ referral_total_counts|safe }};
+    const referralTotalValues = {{ referral_total_values|safe }};
+    const referralColors      = {{ referral_colors|safe }};
+
+    const refDoughnutOpts = {
+        responsive: true,
+        maintainAspectRatio: true,
+        cutout: '60%',
+        plugins: { legend: { display: false } }
+    };
+
+    new Chart(document.getElementById('referralCountChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: referralLabels,
+            datasets: [{ data: referralTotalCounts, backgroundColor: referralColors, borderWidth: 0, hoverOffset: 10 }]
+        },
+        options: {
+            ...refDoughnutOpts,
+            plugins: {
+                ...refDoughnutOpts.plugins,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct   = ((context.raw / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.raw} enquiries (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('referralValueChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: referralLabels,
+            datasets: [{ data: referralTotalValues, backgroundColor: referralColors, borderWidth: 0, hoverOffset: 10 }]
+        },
+        options: {
+            ...refDoughnutOpts,
+            plugins: {
+                ...refDoughnutOpts.plugins,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct   = ((context.raw / total) * 100).toFixed(1);
+                            const fmt   = v => '£' + v.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
+                            return `${context.label}: ${fmt(context.raw)} (${pct}%)`;
                         }
                     }
                 }

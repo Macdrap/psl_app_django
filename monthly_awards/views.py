@@ -11,13 +11,14 @@ from .forms import MonthlyAwardForm
 from invoiced_jobs.models import InvoicedJob
 
 
-def get_or_create_client(company_name, contact_name, email, phone):
+def get_or_create_client(company_name, contact_name, email, phone, sector=None, client_status=None):
     """Find or create Client and Contact records from text inputs.
 
     A Client is looked up by company name alone — no duplicate companies.
     A Contact is scoped to its Client: two different companies can each have
     a 'John Doe', but one company cannot have two 'John Doe' contacts.
-    If the Client already exists its contact details are updated in place.
+    If the contact already exists its details are updated if anything changed.
+    sector and client_status are only applied when a brand-new Client is created.
     """
     from clients.models import Contact, Client
 
@@ -26,22 +27,26 @@ def get_or_create_client(company_name, contact_name, email, phone):
     email = email.strip() if email else None
     phone = phone.strip() if phone else None
 
-    client = Client.objects.filter(name=company_name).first()
+    defaults = {}
+    if sector:
+        defaults['sector'] = sector
+    if client_status:
+        defaults['client_status'] = client_status
 
-    if client:
-        # Client exists — update its contact details if anything changed
-        contact = client.contact
-        if contact.name != contact_name or contact.email != email or contact.phone != phone:
-            contact.name = contact_name
+    client, _ = Client.objects.get_or_create(name=company_name, defaults=defaults)
+
+    contact = Contact.objects.filter(client=client, name=contact_name).first()
+    if contact:
+        if contact.email != email or contact.phone != phone:
             contact.email = email
             contact.phone = phone
             contact.save()
     else:
-        # New company — create a fresh contact and client
-        contact = Contact.objects.create(name=contact_name, email=email, phone=phone)
-        client = Client.objects.create(name=company_name, contact=contact)
+        contact = Contact.objects.create(
+            client=client, name=contact_name, email=email, phone=phone
+        )
 
-    return client
+    return client, contact
 
 
 @login_required
@@ -76,7 +81,8 @@ def monthly_awards_list(request):
             Q(job_number__icontains=search_query) |
             Q(location__icontains=search_query) |
             Q(client__name__icontains=search_query) |
-            Q(client__contact__name__icontains=search_query)
+            Q(contact__name__icontains=search_query) |
+            Q(contact__email__icontains=search_query)
         )
 
     # Sort by filter
@@ -182,7 +188,11 @@ def add_monthly_award(request):
             contact_name = award_form.cleaned_data['contact_name']
             email = award_form.cleaned_data.get('email') or None
             phone = award_form.cleaned_data.get('phone') or None
-            award.client = get_or_create_client(company_name, contact_name, email, phone)
+            sector = award_form.cleaned_data.get('sector') or None
+            client_status = award_form.cleaned_data.get('client_status') or None
+            client, contact = get_or_create_client(company_name, contact_name, email, phone, sector, client_status)
+            award.client = client
+            award.contact = contact
 
             award.save()
 
@@ -236,7 +246,9 @@ def edit_monthly_award(request, pk):
             contact_name = award_form.cleaned_data['contact_name']
             email = award_form.cleaned_data.get('email') or None
             phone = award_form.cleaned_data.get('phone') or None
-            updated_award.client = get_or_create_client(company_name, contact_name, email, phone)
+            client, contact = get_or_create_client(company_name, contact_name, email, phone)
+            updated_award.client = client
+            updated_award.contact = contact
             updated_award.save()
 
             # Update linked sale if exists
@@ -245,6 +257,7 @@ def edit_monthly_award(request, pk):
                 sale.job_number = updated_award.job_number
                 sale.location = updated_award.location
                 sale.client = updated_award.client
+                sale.contact = updated_award.contact
                 sale.value = updated_award.value
                 sale.save()
 

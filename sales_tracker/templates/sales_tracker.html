@@ -604,7 +604,7 @@ td small {
                 <td>{{ enquiry.date|date:"d M Y" }}</td>
                 <td>
                     <strong>{{ enquiry.client.name }}</strong><br>
-                    <small style="color: #6b7280;">{{ enquiry.client.contact.name }}</small>
+                    <small style="color: #6b7280;">{{ enquiry.contact.name|default:'' }}</small>
                 </td>
                 <td>{{ enquiry.location|truncatewords:10 }}</td>
                 <td>£{{ enquiry.value|floatformat:2 }}</td>

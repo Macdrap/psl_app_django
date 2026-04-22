@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Client{% endblock %}
+
+{% block content %}
+<style>
+    .confirm-container {
+        max-width: 560px;
+        margin: 0 auto;
+        background: white;
+        padding: 2.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+
+    .warning-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    h1 { color: #1f2937; margin-bottom: 0.75rem; }
+
+    .client-name {
+        font-weight: 700;
+        color: rgb(88,70,164);
+    }
+
+    .detail { color: #6b7280; margin-bottom: 0.5rem; }
+
+    .warning-box {
+        background: #fef3c7;
+        border: 1px solid #fde68a;
+        color: #92400e;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+        text-align: left;
+    }
+
+    .warning-box ul { margin: 0.5rem 0 0 1.2rem; }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        justify-content: center;
+    }
+
+    .btn {
+        padding: 0.875rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: none;
+        text-decoration: none;
+        display: inline-block;
+        font-family: inherit;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary { background: #e5e7eb; color: #374151; }
+    .btn-secondary:hover { background: #d1d5db; }
+</style>
+
+<div class="confirm-container">
+    <div class="warning-icon">⚠️</div>
+    <h1>Delete Client?</h1>
+    <p class="detail">You are about to permanently delete</p>
+    <p style="font-size: 1.2rem; margin: 0.5rem 0 0.25rem;"><span class="client-name">{{ client.name }}</span></p>
+
+    {% if contact_count or enquiry_count or award_count %}
+    <div class="warning-box">
+        <strong>This client is linked to:</strong>
+        <ul>
+            {% if contact_count %}<li>{{ contact_count }} contact{{ contact_count|pluralize }} (will be deleted)</li>{% endif %}
+            {% if enquiry_count %}<li>{{ enquiry_count }} sales enquir{{ enquiry_count|pluralize:"y,ies" }}</li>{% endif %}
+            {% if award_count %}<li>{{ award_count }} monthly award{{ award_count|pluralize }}</li>{% endif %}
+        </ul>
+        <br>Deleting this client will permanently delete all its contacts and remove the client link from related enquiries and awards.
+    </div>
+    {% endif %}
+
+    <div class="form-actions">
+        <form method="post" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Yes, delete</button>
+        </form>
+        <a href="{% url 'clients_list' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+</div>
+{% endblock %}

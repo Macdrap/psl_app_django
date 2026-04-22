@@ -2,6 +2,7 @@ from django import forms
 from .models import SalesEnquiry
 from django.db.models import FloatField
 from django.db.models.functions import Cast
+from clients.models import SECTOR_CHOICES, CLIENT_STATUS_CHOICES
 
 
 class SalesEnquiryAddForm(forms.ModelForm):
@@ -38,6 +39,25 @@ class SalesEnquiryAddForm(forms.ModelForm):
             'placeholder': 'Enter phone number (optional)'
         })
     )
+    sector = forms.ChoiceField(
+        choices=SECTOR_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-input'}),
+        label='Sector',
+    )
+    client_status = forms.ChoiceField(
+        choices=CLIENT_STATUS_CHOICES,
+        required=False,
+        initial='current',
+        widget=forms.Select(attrs={'class': 'form-input'}),
+        label='Client Status',
+    )
+    referral = forms.ChoiceField(
+        choices=[('', '---------')] + SalesEnquiry.REFERRAL_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-input'}),
+        label='Referral Source',
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -53,7 +73,7 @@ class SalesEnquiryAddForm(forms.ModelForm):
 
     class Meta:
         model = SalesEnquiry
-        fields = ['job_number', 'location', 'note']
+        fields = ['job_number', 'location', 'note', 'referral']
         widgets = {
             'job_number': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -111,17 +131,18 @@ class SalesEnquiryEditForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['note'].required = False
         self.fields['feedback'].required = False
-        # Pre-populate client fields from existing FK
-        if self.instance and self.instance.pk and self.instance.client:
-            client = self.instance.client
-            self.fields['company_name'].initial = client.name
-            self.fields['contact_name'].initial = client.contact.name
-            self.fields['email'].initial = client.contact.email
-            self.fields['phone'].initial = client.contact.phone
+        # Pre-populate client fields from the FKs on the enquiry itself
+        if self.instance and self.instance.pk:
+            if self.instance.client_id:
+                self.fields['company_name'].initial = self.instance.client.name
+            if self.instance.contact_id:
+                self.fields['contact_name'].initial = self.instance.contact.name
+                self.fields['email'].initial = self.instance.contact.email
+                self.fields['phone'].initial = self.instance.contact.phone
 
     class Meta:
         model = SalesEnquiry
-        fields = ['job_number', 'date', 'value', 'location', 'status', 'note', 'feedback', 'other_feedback']
+        fields = ['job_number', 'date', 'value', 'location', 'status', 'note', 'feedback', 'other_feedback', 'referral']
         widgets = {
             'job_number': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -156,6 +177,9 @@ class SalesEnquiryEditForm(forms.ModelForm):
                 'rows': 1
             }),
             'status': forms.Select(attrs={
+                'class': 'form-input'
+            }),
+            'referral': forms.Select(attrs={
                 'class': 'form-input'
             }),
         }
