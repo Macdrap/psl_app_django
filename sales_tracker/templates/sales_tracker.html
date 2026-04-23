@@ -571,6 +571,7 @@ td small {
                 <th>Location</th>
                 <th>Value</th>
                 <th>Status</th>
+                <th>Referral</th>
                 <th>Notes</th>
                 <th>Feedback</th>
                 <th>Actions</th>
@@ -589,6 +590,13 @@ td small {
                 <td>£{{ enquiry.value|floatformat:2 }}</td>
                 <td>
                     <strong>{{ enquiry.get_status_display }}</strong>
+                </td>
+                <td>
+                    {% if enquiry.referral %}
+                        {{ enquiry.get_referral_display }}
+                    {% else %}
+                        <span style="color: #d1d5db; font-style: italic;">-</span>
+                    {% endif %}
                 </td>
                 <td>
                     {% if enquiry.note %}
