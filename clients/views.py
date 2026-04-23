@@ -57,7 +57,14 @@ def clients_list(request):
     else:
         clients = clients.order_by('name')
 
-    paginator = Paginator(clients, 10)
+    try:
+        per_page = int(request.GET.get('per_page', 100))
+        if per_page not in (50, 100, 200):
+            per_page = 100
+    except (ValueError, TypeError):
+        per_page = 100
+
+    paginator = Paginator(clients, per_page)
     page_number = request.GET.get('page', 1)
     try:
         page_obj = paginator.page(page_number)
@@ -70,6 +77,7 @@ def clients_list(request):
         'page_obj': page_obj,
         'search_query': search_query,
         'sort_by': sort_by,
+        'per_page': per_page,
     })
 
 

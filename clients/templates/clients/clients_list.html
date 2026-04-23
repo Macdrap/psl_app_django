@@ -361,18 +361,24 @@
         <div class="filter-group">
             <span style="font-weight:600; color:#374151; white-space:nowrap;">Sort:</span>
             <div class="sort-links">
-                <a href="?sort_by=name_asc{% if search_query %}&search={{ search_query }}{% endif %}"
+                <a href="?sort_by=name_asc&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}"
                    class="sort-link {% if sort_by == 'name_asc' %}active{% endif %}">A &rarr; Z</a>
-                <a href="?sort_by=name_desc{% if search_query %}&search={{ search_query }}{% endif %}"
+                <a href="?sort_by=name_desc&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}"
                    class="sort-link {% if sort_by == 'name_desc' %}active{% endif %}">Z &rarr; A</a>
             </div>
+            <span style="font-weight:600; color:#374151; white-space:nowrap; margin-left:0.5rem;">Show:</span>
+            <select name="per_page" onchange="this.form.submit()" style="padding:0.4rem 0.75rem; border:2px solid #e5e7eb; border-radius:8px; font-size:0.9rem;">
+                <option value="50"  {% if per_page == 50  %}selected{% endif %}>50</option>
+                <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                <option value="200" {% if per_page == 200 %}selected{% endif %}>200</option>
+            </select>
             <input type="hidden" name="sort_by" value="{{ sort_by }}">
             <input type="text" name="search" value="{{ search_query }}"
                    placeholder="Search by company, contact, email or phone…"
                    class="search-input">
             <button type="submit" class="btn-search">Search</button>
             {% if search_query %}
-                <a href="{% url 'clients_list' %}?sort_by={{ sort_by }}" class="btn btn-secondary btn-sm">Clear</a>
+                <a href="{% url 'clients_list' %}?sort_by={{ sort_by }}&per_page={{ per_page }}" class="btn btn-secondary btn-sm">Clear</a>
             {% endif %}
         </div>
     </form>
@@ -500,8 +506,8 @@
         </div>
         <ul class="pagination">
             {% if page_obj.has_previous %}
-                <li><a href="?page=1&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">First</a></li>
-                <li><a href="?page={{ page_obj.previous_page_number }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">&lsaquo; Prev</a></li>
+                <li><a href="?page=1&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}">First</a></li>
+                <li><a href="?page={{ page_obj.previous_page_number }}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}">&lsaquo; Prev</a></li>
             {% else %}
                 <li><span class="disabled">First</span></li>
                 <li><span class="disabled">&lsaquo; Prev</span></li>
@@ -511,13 +517,13 @@
                 {% if page_obj.number == num %}
                     <li><span class="current">{{ num }}</span></li>
                 {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                    <li><a href="?page={{ num }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a></li>
+                    <li><a href="?page={{ num }}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a></li>
                 {% endif %}
             {% endfor %}
 
             {% if page_obj.has_next %}
-                <li><a href="?page={{ page_obj.next_page_number }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">Next &rsaquo;</a></li>
-                <li><a href="?page={{ page_obj.paginator.num_pages }}&sort_by={{ sort_by }}{% if search_query %}&search={{ search_query }}{% endif %}">Last</a></li>
+                <li><a href="?page={{ page_obj.next_page_number }}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}">Next &rsaquo;</a></li>
+                <li><a href="?page={{ page_obj.paginator.num_pages }}&sort_by={{ sort_by }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}">Last</a></li>
             {% else %}
                 <li><span class="disabled">Next &rsaquo;</span></li>
                 <li><span class="disabled">Last</span></li>
