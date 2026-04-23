@@ -6,6 +6,7 @@ SECTOR_CHOICES = [
     ('local_authority', 'Local Authority'),
     ('consulting_engineer', 'Consulting Engineer'),
     ('construction', 'Construction'),
+    ('flood_consultancy', 'Flood Consultancy'),
     ('government_agency', 'Government Agency'),
     ('retail', 'Retail'),
     ('other', 'Other'),
