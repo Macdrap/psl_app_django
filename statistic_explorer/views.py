@@ -238,8 +238,8 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
                 data[st]['pct_value'] = round(float(data[st]['value']) / float(tv) * 100, 1) if tv else 0
 
         # Assign a distinct colour to each sector (consistent with SECTOR_CHOICES order)
-        _palette = ['#6366f1', '#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#6b7280']
-        _color_map = {code: _palette[i] for i, (code, _) in enumerate(SECTOR_CHOICES)}
+        _palette = ['#6366f1', '#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#14b8a6', '#6b7280']
+        _color_map = {code: _palette[i % len(_palette)] for i, (code, _) in enumerate(SECTOR_CHOICES)}
         for code, data in sector_data.items():
             data['color'] = _color_map.get(code, '#9ca3af')
 
