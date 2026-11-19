@@ -55,10 +55,17 @@ echo "Cleaning up old images..."
 docker-compose --env-file .env -f docker/docker-compose.prod.yml down --rmi local 2>/dev/null || true
 print_success "Cleanup completed"
 
-# Build new images (no cache to ensure fresh build)
+# Pull the latest upstream images (nginx, postgres) so security fixes are picked up.
+# Without this, Docker keeps reusing whatever nginx:alpine was cached on first deploy.
+echo ""
+echo "Pulling latest base images..."
+docker-compose --env-file .env -f docker/docker-compose.prod.yml pull db nginx
+print_success "Images pulled"
+
+# Build new images (no cache, fresh base image to ensure a patched build)
 echo ""
 echo "Building Docker images (this may take a few minutes)..."
-docker-compose --env-file .env -f docker/docker-compose.prod.yml build --no-cache
+docker-compose --env-file .env -f docker/docker-compose.prod.yml build --pull --no-cache
 print_success "Images built"
 
 # Start containers
