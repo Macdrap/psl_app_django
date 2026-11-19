@@ -5,26 +5,51 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
+# Never run two deploys at once: they would race on the security group rule.
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
+
+env:
+  SECURITY_GROUP_ID: sg-0f9ae77e7d2f2fe50
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: eu-west-2
 
-    - name: Allow SSH from anywhere (0.0.0.0/0)
+    - name: Allow SSH from this runner's IP only
+      id: open_ssh
       run: |
-        SECURITY_GROUP_ID=sg-0f9ae77e7d2f2fe50
-        echo "Allowing SSH from 0.0.0.0/0 on $SECURITY_GROUP_ID"
-        aws ec2 authorize-security-group-ingress --group-id $SECURITY_GROUP_ID --protocol tcp --port 22 --cidr 0.0.0.0/0 || echo "Rule might already exist"
+        set -euo pipefail
+        RUNNER_IP="$(curl -fsS --retry 3 --max-time 10 https://checkip.amazonaws.com | tr -d '[:space:]')"
+        if ! [[ "$RUNNER_IP" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+          echo "::error::Could not determine runner public IPv4 address (got '$RUNNER_IP')"
+          exit 1
+        fi
+        RUNNER_CIDR="$RUNNER_IP/32"
+        echo "cidr=$RUNNER_CIDR" >> "$GITHUB_OUTPUT"
+        echo "Allowing SSH from $RUNNER_CIDR on $SECURITY_GROUP_ID"
+        if aws ec2 authorize-security-group-ingress \
+             --group-id "$SECURITY_GROUP_ID" --protocol tcp --port 22 --cidr "$RUNNER_CIDR"; then
+          # Only revoke afterwards if this run created the rule.
+          echo "added=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "Rule for $RUNNER_CIDR might already exist; it will be left in place"
+        fi
 
     - name: Deploy to EC2
-      uses: appleboy/ssh-action@master
+      uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
@@ -73,12 +98,30 @@ jobs:
           
           echo "=== Deployment finished ==="
 
-    - name: Revert SSH inbound rule to trusted IP
+    - name: Revoke runner SSH access
+      if: always()
       run: |
-        SECURITY_GROUP_ID=sg-0f9ae77e7d2f2fe50
-        TRUSTED_IP="${{ secrets.MY_CURRENT_IP_CIDR_FORMAT }}"
-        echo "Revoking SSH from 0.0.0.0/0 on $SECURITY_GROUP_ID"
-        aws ec2 revoke-security-group-ingress --group-id $SECURITY_GROUP_ID --protocol tcp --port 22 --cidr 0.0.0.0/0 || echo "Rule may not exist."
-        echo "Authorizing SSH from trusted IP $TRUSTED_IP"
-        aws ec2 authorize-security-group-ingress --group-id $SECURITY_GROUP_ID --protocol tcp --port 22 --cidr $TRUSTED_IP || true
+        ADDED="${{ steps.open_ssh.outputs.added }}"
+        RUNNER_CIDR="${{ steps.open_ssh.outputs.cidr }}"
+        if [ "$ADDED" = "true" ] && [ -n "$RUNNER_CIDR" ]; then
+          echo "Revoking SSH from $RUNNER_CIDR on $SECURITY_GROUP_ID"
+          aws ec2 revoke-security-group-ingress \
+            --group-id "$SECURITY_GROUP_ID" --protocol tcp --port 22 --cidr "$RUNNER_CIDR"
+        else
+          echo "No rule was added by this run; nothing to revoke"
+        fi
+        # Clean up any world-open SSH rule left behind by earlier versions of this workflow.
+        aws ec2 revoke-security-group-ingress \
+          --group-id "$SECURITY_GROUP_ID" --protocol tcp --port 22 --cidr 0.0.0.0/0 2>/dev/null \
+          && echo "Removed leftover 0.0.0.0/0 SSH rule" || true
 
+    - name: Ensure SSH from trusted IP
+      if: always()
+      env:
+        TRUSTED_IP: ${{ secrets.MY_CURRENT_IP_CIDR_FORMAT }}
+      run: |
+        if [ -n "$TRUSTED_IP" ]; then
+          echo "Authorizing SSH from trusted IP"
+          aws ec2 authorize-security-group-ingress \
+            --group-id "$SECURITY_GROUP_ID" --protocol tcp --port 22 --cidr "$TRUSTED_IP" || true
+        fi
