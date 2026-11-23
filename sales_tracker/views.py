@@ -472,10 +472,10 @@ def sales_tracker_poll(request):
         per_page = int(request.GET.get('per_page', 100))
         if per_page < 1:
             per_page = 10
-        elif per_page > 100:
-            per_page = 100
+        elif per_page > 200:
+            per_page = 200
     except (ValueError, TypeError):
-        per_page = 100
+        per_page = 10
 
     page = request.GET.get('page', 1)
 

@@ -46,7 +46,7 @@ class InvoicedJob(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Pending')
 
     # Follow up
-    follow_up_status = models.CharField(max_length=20, choices=FOLLOW_STATUS, default="N/A")
+    follow_up_status = models.CharField(max_length=20, choices=FOLLOW_STATUS, default="n_a")
     followed_up_date = models.DateField(null=True, blank=True)
 
     # Metadata

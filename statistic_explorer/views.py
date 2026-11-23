@@ -435,6 +435,7 @@ class StatisticExplorerPDFView(LoginRequiredMixin, TemplateView):
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
 
-        except ImportError:
-            # Fallback: return HTML for printing
+        except (ImportError, OSError):
+            # Fallback: return HTML for printing. OSError = weasyprint installed
+            # but its Pango system libraries are missing (e.g. Windows dev machines).
             return HttpResponse(html_string, content_type='text/html')

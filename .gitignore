@@ -63,8 +63,11 @@ logs/
 # SSL certificates
 certbot/
 
-# Backup files
+# Backup files (database dumps contain client data - never commit them)
 *.bak
 *.backup
+*.sql
+*.sql.gz
+backups/
 /.claude/
 /.claire/

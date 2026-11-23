@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block title %}Contacts - {{ client.name }}{% endblock %}
+
+{% block content %}
+<style>
+    .contacts-container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        padding: 2rem 2.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+
+    h1 { color: #1f2937; margin: 0; font-size: 1.5rem; }
+    h1 .client-name { color: rgb(88,70,164); }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead th {
+        text-align: left;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #6b7280;
+        padding: 0.6rem 0.75rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    td {
+        padding: 0.7rem 0.75rem;
+        border-bottom: 1px solid #f3f4f6;
+        color: #374151;
+        word-break: break-word;
+    }
+
+    .muted { color: #d1d5db; font-style: italic; }
+
+    .actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.2s;
+    }
+
+    .btn-primary { background: rgb(88,70,164); color: white; }
+    .btn-primary:hover { background: rgb(72,56,140); }
+    .btn-secondary { background: #e5e7eb; color: #374151; }
+    .btn-secondary:hover { background: #d1d5db; }
+    .btn-edit { background: #ede9fe; color: rgb(88,70,164); }
+    .btn-delete { background: #fee2e2; color: #b91c1c; }
+
+    .empty-state { text-align: center; color: #6b7280; padding: 2.5rem 0; }
+
+    @media (max-width: 640px) {
+        .contacts-container { padding: 1.25rem; }
+        .col-phone { display: none; }
+    }
+</style>
+
+<div class="contacts-container">
+    <div class="page-header">
+        <h1>Contacts &middot; <span class="client-name">{{ client.name }}</span></h1>
+        <div class="actions">
+            <a href="{% url 'contact_add' client.pk %}" class="btn btn-primary">+ Add Contact</a>
+            <a href="{% url 'clients_list' %}" class="btn btn-secondary">Back to Clients</a>
+        </div>
+    </div>
+
+    {% if contacts %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th class="col-phone">Phone</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for contact in contacts %}
+            <tr>
+                <td><strong>{{ contact.name }}</strong></td>
+                <td>{% if contact.email %}<a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% else %}<span class="muted">-</span>{% endif %}</td>
+                <td class="col-phone">{% if contact.phone %}{{ contact.phone }}{% else %}<span class="muted">-</span>{% endif %}</td>
+                <td>
+                    <div class="actions">
+                        <a href="{% url 'contact_edit' client.pk contact.pk %}" class="btn btn-edit">Edit</a>
+                        <a href="{% url 'contact_delete' client.pk contact.pk %}" class="btn btn-delete">Delete</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">This client has no contacts yet.</div>
+    {% endif %}
+</div>
+{% endblock %}

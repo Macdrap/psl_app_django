@@ -137,12 +137,18 @@ def client_delete(request, pk):
             messages.success(request, f'Client "{name}" deleted successfully.')
             return redirect('clients_list')
         except ProtectedError:
+            # Both sales enquiries and monthly awards protect a client.
             enquiry_count = client.sales_enquiries.count()
+            award_count = client.monthly_awards.count()
+            linked = []
+            if enquiry_count:
+                linked.append(f'{enquiry_count} sales enquir{"y" if enquiry_count == 1 else "ies"}')
+            if award_count:
+                linked.append(f'{award_count} monthly award{"" if award_count == 1 else "s"}')
             messages.error(
                 request,
-                f'"{name}" cannot be deleted because it has {enquiry_count} linked '
-                f'sales enquir{"y" if enquiry_count == 1 else "ies"}. '
-                f'Please reassign or delete those enquiries first.'
+                f'"{name}" cannot be deleted because it has {" and ".join(linked)} linked to it. '
+                f'Please reassign or delete those first.'
             )
             return redirect('clients_list')
 

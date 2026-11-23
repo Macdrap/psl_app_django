@@ -25,6 +25,10 @@ coverage.xml
 .env.*
 db.sqlite3
 *.sqlite3
+# database dumps contain client data - keep them out of images
+*.sql
+*.sql.gz
+backups/
 .DS_Store
 .vscode
 .idea
