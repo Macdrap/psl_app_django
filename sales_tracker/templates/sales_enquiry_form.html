@@ -431,6 +431,7 @@
                     <div class="form-group">
                         <label for="{{ form.referral.id_for_label }}">Referral Source</label>
                         {{ form.referral }}
+                        <div style="font-size:0.8rem; color:#6b7280; margin-top:0.25rem;">Applies to every enquiry from this client.</div>
                         {% if form.referral.errors %}
                             <div class="error-message">{{ form.referral.errors }}</div>
                         {% endif %}
@@ -481,6 +482,7 @@
                 <div class="form-group">
                     <label for="{{ form.referral.id_for_label }}">Referral Source</label>
                     {{ form.referral }}
+                    <div style="font-size:0.8rem; color:#6b7280; margin-top:0.25rem;">Shared by every enquiry from this client &mdash; changing it here updates them all.</div>
                     {% if form.referral.errors %}
                         <div class="error-message">{{ form.referral.errors }}</div>
                     {% endif %}

@@ -70,6 +70,149 @@ def client_quote_stats(enquiries):
     return result
 
 
+# Where a referred client has got to. Order = display order (best first).
+CONVERSION_OUTCOMES = [
+    ('converted', 'Converted', 'Came back and has been awarded work'),
+    ('awarded_once', 'Awarded, not back yet', 'Awarded on their only enquiry so far'),
+    ('returned', 'Came back, no award yet', 'More than one enquiry, nothing awarded yet'),
+    ('one_off', 'One enquiry only', 'Single enquiry, not awarded'),
+]
+_REFERRAL_PALETTE = {'google': '#4285f4', 'recommendation': '#10b981', 'other': '#6b7280'}
+
+
+def referral_conversion_stats(enquiries):
+    """How well each referral source turns new clients into repeat, awarded clients.
+
+    The cohort is every client with a referral source recorded whose FIRST
+    enquiry ever falls inside the date-filtered `enquiries` queryset (the
+    period filter picks *when we won the client*). What happened next is
+    measured over the client's whole history, up to today, so a client
+    acquired in March who came back in June still counts as having come back.
+
+    - came back = 2 or more enquiries (any status)
+    - awarded   = at least one enquiry with status Awarded
+    - converted = came back AND awarded: a current client with awards to show
+
+    Returns (sources, clients): one summary dict per referral source that has
+    clients, plus a "total" dict under sources['total'], and the per-client
+    rows (newest first).
+    """
+    zero = Decimal('0.00')
+
+    # First enquiry date per client inside the period. A client's first-ever
+    # enquiry is in the period iff it equals their first enquiry overall
+    # (the filter is always one continuous date range).
+    period_first = dict(
+        enquiries.filter(client__isnull=False)
+        .order_by().values('client_id')
+        .annotate(first=Min('date'))
+        .values_list('client_id', 'first')
+    )
+    if not period_first:
+        return {}, []
+
+    all_of_cohort = SalesEnquiry.objects.filter(client_id__in=period_first.keys())
+
+    # Referral belongs to the client (sales_tracker/client_sync.py keeps all of
+    # a client's enquiries in step); if they ever differ, the earliest wins.
+    referral_of = {}
+    for client_id, referral in (all_of_cohort
+                                .exclude(referral__isnull=True).exclude(referral='')
+                                .order_by('date', 'created_at', 'pk')
+                                .values_list('client_id', 'referral')):
+        referral_of.setdefault(client_id, referral)
+    if not referral_of:
+        return {}, []
+
+    lifetime = (
+        all_of_cohort.filter(client_id__in=referral_of.keys())
+        .order_by()
+        .values('client_id', 'client__name', 'client__client_status')
+        .annotate(
+            first_date=Min('date'),
+            last_date=Max('date'),
+            enquiry_count=Count('id'),
+            awarded_count=Count('id', filter=Q(status='Awarded')),
+            awarded_value=Sum('value', filter=Q(status='Awarded')),
+        )
+    )
+
+    referral_labels = dict(SalesEnquiry.REFERRAL_CHOICES)
+    status_labels = dict(CLIENT_STATUS_CHOICES)
+    outcome_labels = {code: label for code, label, _ in CONVERSION_OUTCOMES}
+
+    clients = []
+    for r in lifetime:
+        if r['first_date'] != period_first[r['client_id']]:
+            continue  # first enquiry was before this period: not a new client here
+        came_back = r['enquiry_count'] > 1
+        awarded = r['awarded_count'] > 0
+        if came_back and awarded:
+            outcome = 'converted'
+        elif awarded:
+            outcome = 'awarded_once'
+        elif came_back:
+            outcome = 'returned'
+        else:
+            outcome = 'one_off'
+        referral = referral_of[r['client_id']]
+        clients.append({
+            'id': r['client_id'],
+            'name': r['client__name'],
+            'referral': referral,
+            'referral_label': referral_labels.get(referral, referral),
+            'referral_color': _REFERRAL_PALETTE.get(referral, '#9ca3af'),
+            'client_status': status_labels.get(r['client__client_status'], r['client__client_status'] or ''),
+            'first_date': r['first_date'],
+            'last_date': r['last_date'],
+            'enquiry_count': r['enquiry_count'],
+            'awarded_count': r['awarded_count'],
+            'awarded_value': r['awarded_value'] or zero,
+            'came_back': came_back,
+            'awarded': awarded,
+            'outcome': outcome,
+            'outcome_label': outcome_labels[outcome],
+        })
+    clients.sort(key=lambda c: (c['first_date'], c['name'].lower()), reverse=True)
+
+    def summarise(label, color, rows):
+        n = len(rows)
+
+        def pct(k):
+            return round(k / n * 100, 1) if n else 0
+
+        returned = sum(1 for c in rows if c['came_back'])
+        awarded = sum(1 for c in rows if c['awarded'])
+        converted = sum(1 for c in rows if c['outcome'] == 'converted')
+        enquiry_total = sum(c['enquiry_count'] for c in rows)
+        return {
+            'label': label,
+            'color': color,
+            'clients': n,
+            'returned': returned, 'returned_pct': pct(returned),
+            'awarded': awarded, 'awarded_pct': pct(awarded),
+            'converted': converted, 'converted_pct': pct(converted),
+            'enquiries': enquiry_total,
+            'enquiries_per_client': round(enquiry_total / n, 1) if n else 0,
+            'awarded_jobs': sum(c['awarded_count'] for c in rows),
+            'awarded_value': sum((c['awarded_value'] for c in rows), zero),
+            'outcomes': [
+                {'code': code, 'label': o_label, 'count': k, 'pct': pct(k)}
+                for code, o_label, _ in CONVERSION_OUTCOMES
+                for k in [sum(1 for c in rows if c['outcome'] == code)]
+            ],
+        }
+
+    sources = {}
+    for code, label in SalesEnquiry.REFERRAL_CHOICES:
+        rows = [c for c in clients if c['referral'] == code]
+        if rows:
+            sources[code] = summarise(label, _REFERRAL_PALETTE.get(code, '#9ca3af'), rows)
+    if sources:
+        sources['total'] = summarise('All sources', '#1f2937', clients)
+    return sources, clients
+
+
 class StatisticExplorerView(LoginRequiredMixin, TemplateView):
     template_name = "statistic_explorer.html"
 
@@ -246,7 +389,7 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
                 referral_data[code][status]['count'] += stat['count']
                 referral_data[code][status]['value'] += stat['total_value'] or Decimal('0.00')
 
-        _referral_palette = {'google': '#4285f4', 'recommendation': '#10b981', 'other': '#6b7280'}
+        _referral_palette = _REFERRAL_PALETTE
         for code, data in referral_data.items():
             tc = data['awarded']['count'] + data['rejected']['count'] + data['pending']['count']
             tv = data['awarded']['value'] + data['rejected']['value'] + data['pending']['value']
@@ -270,6 +413,9 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
         referral_total_counts = [v['total_count']        for v in active_referrals.values()]
         referral_total_values = [float(v['total_value']) for v in active_referrals.values()]
         referral_colors       = [v['color']              for v in active_referrals.values()]
+
+        # New clients by referral source: did they come back, and win work?
+        conversion_sources, conversion_clients = referral_conversion_stats(enquiries)
 
         # ── Sector analysis ───────────────────────────────────────────────────
         sector_stats = (
@@ -439,6 +585,9 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
             'referral_total_counts': referral_total_counts,
             'referral_total_values': referral_total_values,
             'referral_colors':       referral_colors,
+            'conversion_sources':    conversion_sources,
+            'conversion_clients':    conversion_clients,
+            'conversion_outcomes':   CONVERSION_OUTCOMES,
 
             # Sector data
             'active_sectors': active_sectors,

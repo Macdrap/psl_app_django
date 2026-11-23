@@ -237,3 +237,132 @@ class PollEndpointTests(LoggedInTestCase):
     def test_poll_empty_result_shows_message(self):
         resp = self.client.get(reverse('sales_tracker_poll'), {'last_count': '5'})
         self.assertIn('No enquiries found', resp.json()['table_html'])
+
+
+class ClientReferralAndStatusTests(LoggedInTestCase):
+    """Referral source is shared by all of a client's enquiries, and a `new`
+    client becomes `current` once it has more than one enquiry."""
+
+    post_add = AddSalesEnquiryTests.post_add
+
+    def referrals(self, client_name):
+        return set(SalesEnquiry.objects.filter(client__name=client_name)
+                   .values_list('referral', flat=True))
+
+    def edit(self, enquiry, **overrides):
+        resp = self.client.post(reverse('edit_sales_enquiry', args=[enquiry.pk]),
+                                edit_payload(enquiry, **overrides))
+        self.assertEqual(resp.status_code, 302, 'edit form rejected the POST')
+        enquiry.refresh_from_db()
+        return resp
+
+    # ---- referral ----------------------------------------------------------
+
+    def test_new_enquiry_for_existing_client_inherits_referral(self):
+        self.post_add(job_number='1', company_name='NewCo', client_status='new', referral='google')
+        self.post_add(job_number='2', company_name='NewCo', client_status='current', referral='')
+        self.assertEqual(SalesEnquiry.objects.get(job_number='2').referral, 'google')
+
+    def test_referral_given_on_add_applies_to_clients_earlier_enquiries(self):
+        acme = self.make_client('Acme Ltd')
+        self.make_enquiry(job_number='1', client=acme)
+        self.post_add(job_number='2', company_name='Acme Ltd', client_status='new', referral='recommendation')
+        self.assertEqual(self.referrals('Acme Ltd'), {'recommendation'})
+
+    def test_editing_referral_updates_all_of_that_clients_enquiries_only(self):
+        acme, bravo = self.make_client('Acme Ltd'), self.make_client('Bravo Ltd')
+        first = self.make_enquiry(job_number='1', client=acme, referral='google')
+        self.make_enquiry(job_number='2', client=acme, referral='google')
+        self.make_enquiry(job_number='3', client=bravo, contact=self.make_contact(bravo), referral='google')
+        self.edit(first, referral='other')
+        self.assertEqual(self.referrals('Acme Ltd'), {'other'})
+        self.assertEqual(self.referrals('Bravo Ltd'), {'google'})
+
+    def test_clearing_referral_clears_it_for_the_whole_client(self):
+        acme = self.make_client('Acme Ltd')
+        first = self.make_enquiry(job_number='1', client=acme, referral='google')
+        self.make_enquiry(job_number='2', client=acme, referral='google')
+        self.edit(first, referral='')
+        self.assertEqual(self.referrals('Acme Ltd'), {None})
+
+    def test_moving_enquiry_to_another_client_takes_that_clients_referral(self):
+        acme, bravo = self.make_client('Acme Ltd'), self.make_client('Bravo Ltd')
+        moved = self.make_enquiry(job_number='1', client=acme, referral='google')
+        self.make_enquiry(job_number='2', client=bravo, contact=self.make_contact(bravo),
+                          referral='recommendation')
+        self.edit(moved, company_name='Bravo Ltd', referral='google')
+        self.assertEqual(moved.client, bravo)
+        self.assertEqual(self.referrals('Bravo Ltd'), {'recommendation'})
+
+    def test_moving_enquiry_to_client_without_referral_carries_it_over(self):
+        acme, bravo = self.make_client('Acme Ltd'), self.make_client('Bravo Ltd')
+        moved = self.make_enquiry(job_number='1', client=acme, referral='google')
+        self.make_enquiry(job_number='2', client=bravo, contact=self.make_contact(bravo))
+        self.edit(moved, company_name='Bravo Ltd', referral='google')
+        self.assertEqual(self.referrals('Bravo Ltd'), {'google'})
+
+    def test_moving_sale_via_award_edit_takes_new_clients_referral_and_status(self):
+        from monthly_awards.tests import award_payload
+        acme = self.make_client('Acme Ltd')
+        bravo = self.make_client('Bravo Ltd', client_status='new')
+        sale = self.make_enquiry(job_number='8000', value='1200', status='Awarded', client=acme,
+                                 referral='google')
+        self.make_enquiry(job_number='2', client=bravo, contact=self.make_contact(bravo), referral='other')
+        award = self.make_award(sale=sale, job_number='8000', value='1200')
+        self.client.post(reverse('edit_monthly_award', args=[award.pk]),
+                         award_payload(company_name='Bravo Ltd'))
+        sale.refresh_from_db()
+        bravo.refresh_from_db()
+        self.assertEqual((sale.client, sale.referral), (bravo, 'other'))
+        self.assertEqual(bravo.client_status, 'current')
+
+    # ---- new -> current ----------------------------------------------------
+
+    def test_new_client_becomes_current_on_second_enquiry(self):
+        self.post_add(job_number='1', company_name='NewCo', client_status='new', referral='google')
+        self.assertEqual(Client.objects.get(name='NewCo').client_status, 'new')
+        self.post_add(job_number='2', company_name='NewCo', client_status='current')
+        self.assertEqual(Client.objects.get(name='NewCo').client_status, 'current')
+
+    def test_dormant_client_is_not_changed(self):
+        self.make_client('Sleepy Ltd', client_status='dormant')
+        self.post_add(job_number='1', company_name='Sleepy Ltd')
+        self.post_add(job_number='2', company_name='Sleepy Ltd')
+        self.assertEqual(Client.objects.get(name='Sleepy Ltd').client_status, 'dormant')
+
+    def test_moving_enquiry_onto_new_client_promotes_it(self):
+        acme = self.make_client('Acme Ltd')
+        newco = self.make_client('NewCo', client_status='new')
+        self.make_enquiry(job_number='1', client=newco, contact=self.make_contact(newco))
+        moved = self.make_enquiry(job_number='2', client=acme)
+        self.edit(moved, company_name='NewCo')
+        newco.refresh_from_db()
+        self.assertEqual(newco.client_status, 'current')
+
+    # ---- migration 0017 ----------------------------------------------------
+
+    def test_migration_0017_syncs_existing_referrals_and_statuses(self):
+        import importlib
+        from django.apps import apps
+        migration = importlib.import_module('sales_tracker.migrations.0017_sync_client_referral_and_status')
+        mixed = self.make_client('Mixed Ltd', client_status='new')
+        c_mixed = self.make_contact(mixed)
+        self.make_enquiry(job_number='1', client=mixed, contact=c_mixed, date=date(2026, 3, 1))
+        self.make_enquiry(job_number='2', client=mixed, contact=c_mixed, date=date(2026, 1, 1),
+                          referral='recommendation')
+        self.make_enquiry(job_number='3', client=mixed, contact=c_mixed, date=date(2026, 2, 1),
+                          referral='google')
+        plain = self.make_client('Plain Ltd', client_status='new')
+        self.make_enquiry(job_number='4', client=plain, contact=self.make_contact(plain))
+        sleepy = self.make_client('Sleepy Ltd', client_status='dormant')
+        c_sleepy = self.make_contact(sleepy)
+        self.make_enquiry(job_number='5', client=sleepy, contact=c_sleepy)
+        self.make_enquiry(job_number='6', client=sleepy, contact=c_sleepy)
+
+        migration.sync_existing(apps, None)
+
+        self.assertEqual(self.referrals('Mixed Ltd'), {'recommendation'})  # earliest wins
+        self.assertEqual(self.referrals('Plain Ltd'), {None})
+        statuses = dict(Client.objects.values_list('name', 'client_status'))
+        self.assertEqual((statuses['Mixed Ltd'], statuses['Plain Ltd'], statuses['Sleepy Ltd']),
+                         ('current', 'new', 'dormant'))

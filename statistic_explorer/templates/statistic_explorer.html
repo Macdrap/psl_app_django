@@ -503,6 +503,50 @@
     .client-table .win { color: #10b981; font-weight: 600; }
     .muted { color: #9ca3af; font-size: 0.8rem; }
 
+    /* New Client Conversion (inside Referral Analysis) */
+    .conversion-block {
+        margin-top: 2.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e5e7eb;
+    }
+    .conversion-title { color: #1f2937; font-size: 1.1rem; margin: 0 0 0.4rem; }
+    .conversion-intro { color: #6b7280; font-size: 0.9rem; margin: 0 0 1rem; }
+    .conversion-table tbody tr { cursor: default; }
+    .conversion-table .total-row td { background: #f9fafb; border-top: 2px solid #e5e7eb; font-weight: 600; }
+    .conversion-table .th-sub { font-weight: 400; font-size: 0.72rem; color: #6b7280; }
+    .conversion-table a { color: rgb(88,70,164); text-decoration: none; }
+    .conversion-table a:hover { text-decoration: underline; }
+    .source-dot {
+        display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+        margin-right: 0.45rem; vertical-align: middle;
+    }
+    .outcome-bar {
+        display: flex; height: 14px; border-radius: 7px; overflow: hidden;
+        background: #f3f4f6; min-width: 160px;
+    }
+    .outcome-bar span { display: block; height: 100%; }
+    .outcome-converted    { background: #10b981; }
+    .outcome-awarded_once { background: #6ee7b7; }
+    .outcome-returned     { background: #f59e0b; }
+    .outcome-one_off      { background: #d1d5db; }
+    .outcome-legend {
+        display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: 0.75rem;
+        color: #6b7280; font-size: 0.85rem;
+    }
+    .outcome-swatch {
+        display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+        margin-right: 0.4rem; vertical-align: middle;
+    }
+    .outcome-pill {
+        display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px;
+        font-size: 0.78rem; font-weight: 600; color: #1f2937;
+    }
+    .outcome-pill.outcome-converted { color: white; }
+    .conversion-clients { margin-top: 1.25rem; }
+    .conversion-clients summary {
+        cursor: pointer; color: rgb(88,70,164); font-weight: 600; margin-bottom: 0.75rem;
+    }
+
     .client-table-footer {
         display: flex;
         align-items: center;
@@ -1164,6 +1208,96 @@
         <p>No referral sources have been recorded for new clients in the selected period.</p>
     </div>
     {% endif %}
+
+    <!-- New client conversion: do referred clients come back and win work? -->
+    <div class="conversion-block" id="conversion-block">
+        <h3 class="conversion-title">New Client Conversion</h3>
+        <p class="conversion-intro">
+            New clients with a referral source whose <strong>first enquiry</strong> was in
+            <strong>{{ filter_description }}</strong>, followed up to today.
+            <strong>Converted</strong> = came back for another enquiry <em>and</em> has been awarded work.
+        </p>
+
+        {% if conversion_sources %}
+        <div class="client-table-wrap">
+            <table class="client-table conversion-table">
+                <thead>
+                    <tr>
+                        <th>Source</th>
+                        <th class="num">New Clients</th>
+                        <th class="num">Came Back<br><span class="th-sub">2+ enquiries</span></th>
+                        <th class="num">Won Work<br><span class="th-sub">1+ award</span></th>
+                        <th class="num">Converted<br><span class="th-sub">came back + award</span></th>
+                        <th class="num">Average Enquiries<br>per Client</th>
+                        <th class="num">Awarded</th>
+                        <th style="min-width:200px;">Where They Are Now</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for code, s in conversion_sources.items %}
+                    <tr class="{% if code == 'total' %}total-row{% endif %}">
+                        <td class="client-name">
+                            {% if code != 'total' %}<span class="source-dot" style="background:{{ s.color }};"></span>{% endif %}{{ s.label }}
+                        </td>
+                        <td class="num strong">{{ s.clients }}</td>
+                        <td class="num">{{ s.returned }} <span class="muted">({{ s.returned_pct }}%)</span></td>
+                        <td class="num">{{ s.awarded }} <span class="muted">({{ s.awarded_pct }}%)</span></td>
+                        <td class="num win">{{ s.converted }} ({{ s.converted_pct }}%)</td>
+                        <td class="num">{{ s.enquiries_per_client }}</td>
+                        <td class="num">{{ s.awarded_jobs }} <span class="muted">/ £{{ s.awarded_value|floatformat:"0g" }}</span></td>
+                        <td>
+                            <div class="outcome-bar" title="{% for o in s.outcomes %}{{ o.label }}: {{ o.count }}{% if not forloop.last %} · {% endif %}{% endfor %}">
+                                {% for o in s.outcomes %}{% if o.count %}<span class="outcome-{{ o.code }}" style="width:{{ o.pct|stringformat:'s' }}%;"></span>{% endif %}{% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="outcome-legend">
+            {% for code, label, help in conversion_outcomes %}
+            <span title="{{ help }}"><span class="outcome-swatch outcome-{{ code }}"></span>{{ label }}</span>
+            {% endfor %}
+        </div>
+
+        <details class="conversion-clients">
+            <summary>Show the {{ conversion_clients|length }} client{{ conversion_clients|length|pluralize }}</summary>
+            <div class="client-table-wrap">
+                <table class="client-table conversion-table">
+                    <thead>
+                        <tr>
+                            <th>Client</th>
+                            <th>Source</th>
+                            <th class="num">First Enquiry</th>
+                            <th class="num">Enquiries</th>
+                            <th class="num">Awarded</th>
+                            <th class="num">Last Enquiry</th>
+                            <th>Status</th>
+                            <th>Outcome</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in conversion_clients %}
+                        <tr>
+                            <td class="client-name"><a href="{% url 'sales_tracker' %}?search={{ c.name|urlencode }}" title="View {{ c.name }}'s enquiries in the Sales Tracker">{{ c.name }}</a></td>
+                            <td><span class="source-dot" style="background:{{ c.referral_color }};"></span>{{ c.referral_label }}</td>
+                            <td class="num">{{ c.first_date|date:'d M Y' }}</td>
+                            <td class="num">{{ c.enquiry_count }}</td>
+                            <td class="num">{{ c.awarded_count }} <span class="muted">/ £{{ c.awarded_value|floatformat:"0g" }}</span></td>
+                            <td class="num">{{ c.last_date|date:'d M Y' }}</td>
+                            <td>{{ c.client_status }}</td>
+                            <td><span class="outcome-pill outcome-{{ c.outcome }}">{{ c.outcome_label }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
+        {% else %}
+        <p class="muted" style="font-size:0.9rem;">No new clients with a referral source had their first enquiry in this period.</p>
+        {% endif %}
+    </div>
 </div>
 
 <!-- Chart.js -->

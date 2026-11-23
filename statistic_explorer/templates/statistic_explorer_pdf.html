@@ -471,6 +471,53 @@
     </div>
     {% endif %}
 
+    {% if show_referral and conversion_sources %}
+    <!-- New client conversion by referral source -->
+    <div class="section">
+        <div class="section-title">New Client Conversion by Referral Source</div>
+        <table class="breakdown-table" style="font-size:11px;">
+            <thead>
+                <tr>
+                    <th>Source</th>
+                    <th>New Clients</th>
+                    <th>Came Back (2+ enquiries)</th>
+                    <th>Won Work (1+ award)</th>
+                    <th>Converted</th>
+                    <th>Average Enquiries per Client</th>
+                    <th>Awarded</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for code, s in conversion_sources.items %}{% if code != 'total' %}
+                <tr>
+                    <td><strong>{{ s.label }}</strong></td>
+                    <td>{{ s.clients }}</td>
+                    <td>{{ s.returned }} ({{ s.returned_pct }}%)</td>
+                    <td>{{ s.awarded }} ({{ s.awarded_pct }}%)</td>
+                    <td class="status-awarded">{{ s.converted }} ({{ s.converted_pct }}%)</td>
+                    <td>{{ s.enquiries_per_client }}</td>
+                    <td>{{ s.awarded_jobs }} / £{{ s.awarded_value|floatformat:"2g" }}</td>
+                </tr>
+                {% endif %}{% endfor %}
+            </tbody>
+            {% with t=conversion_sources.total %}
+            <tfoot>
+                <tr>
+                    <td><strong>All sources</strong></td>
+                    <td><strong>{{ t.clients }}</strong></td>
+                    <td><strong>{{ t.returned }} ({{ t.returned_pct }}%)</strong></td>
+                    <td><strong>{{ t.awarded }} ({{ t.awarded_pct }}%)</strong></td>
+                    <td class="status-awarded"><strong>{{ t.converted }} ({{ t.converted_pct }}%)</strong></td>
+                    <td><strong>{{ t.enquiries_per_client }}</strong></td>
+                    <td><strong>{{ t.awarded_jobs }} / £{{ t.awarded_value|floatformat:"2g" }}</strong></td>
+                </tr>
+            </tfoot>
+            {% endwith %}
+        </table>
+        <p style="font-size:10px; color:#6b7280; margin-top:6px;">New clients with a referral source whose first enquiry was in {{ filter_description }}, followed up to today. Converted = came back for another enquiry and has been awarded work.</p>
+    </div>
+    {% endif %}
+
     <div class="footer">
         <p>Generated on {% now "d F Y \a\t H:i" %}</p>
         <p>PSL Workflow Management System</p>
