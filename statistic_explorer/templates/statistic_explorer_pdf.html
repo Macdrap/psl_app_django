@@ -358,6 +358,42 @@
     </div>
     {% endif %}
 
+    {% if show_client_analysis and client_rows %}
+    <!-- Client analysis: top clients by total quoted -->
+    <div class="section">
+        <div class="section-title">Client Analysis &mdash; Top {{ client_rows_top|length }} of {{ client_rows|length }} Clients by Value Quoted</div>
+        <table class="breakdown-table client-analysis-table" style="font-size:11px;">
+            <thead>
+                <tr>
+                    <th>Client</th>
+                    <th>Sector</th>
+                    <th>Quotes</th>
+                    <th>Total Quoted</th>
+                    <th>Awarded</th>
+                    <th>Win Rate</th>
+                    <th>Avg Quote</th>
+                    <th>Last Quote</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in client_rows_top %}
+                <tr>
+                    <td><strong>{{ row.name }}</strong></td>
+                    <td>{{ row.sector }}</td>
+                    <td>{{ row.quote_count }}</td>
+                    <td>£{{ row.total_value|floatformat:"2g" }}</td>
+                    <td>{{ row.awarded_count }} / £{{ row.awarded_value|floatformat:"2g" }}</td>
+                    <td class="status-awarded">{{ row.win_rate }}%</td>
+                    <td>£{{ row.avg_value|floatformat:"2g" }}</td>
+                    <td>{{ row.last_date|date:'d M Y' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p style="font-size:10px; color:#6b7280; margin-top:6px;">Quotes = Pending, Awarded or Rejected enquiries over £0. Win rate = awarded &divide; quotes.</p>
+    </div>
+    {% endif %}
+
     {% if show_client_status and client_status_has_data %}
     <!-- Client status analysis -->
     <div class="section">
