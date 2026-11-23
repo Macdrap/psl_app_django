@@ -619,6 +619,30 @@
         </div>
     </div>
 
+    <div class="summary-row" id="quote-value-stats">
+        {% if quote_value_stats.priced_count %}
+        <div class="summary-card">
+            <div class="label">Average Quote</div>
+            <div class="value">£{{ quote_value_stats.avg|floatformat:2 }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Lowest Quote</div>
+            <div class="value">£{{ quote_value_stats.min|floatformat:2 }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Highest Quote</div>
+            <div class="value">£{{ quote_value_stats.max|floatformat:2 }}</div>
+        </div>
+        <div class="summary-card" style="grid-column:1 / -1; padding-top:0; color:#6b7280; font-size:0.8rem;">
+            Based on {{ quote_value_stats.priced_count }} priced quote{{ quote_value_stats.priced_count|pluralize }}{% if quote_value_stats.priced_count != sales_total_count %} (£0 quotes excluded){% endif %}
+        </div>
+        {% else %}
+        <div class="summary-card" style="grid-column:1 / -1; color:#6b7280; font-size:0.9rem;">
+            No priced quotes in this period — average, lowest and highest are not available.
+        </div>
+        {% endif %}
+    </div>
+
     {% else %}
     <div class="no-data">
         <div class="no-data-icon">📊</div>

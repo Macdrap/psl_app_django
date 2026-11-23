@@ -1,6 +1,8 @@
 """Smoke/regression tests for the Statistic Explorer."""
 import sys
 import types
+from datetime import date
+from decimal import Decimal
 from unittest import mock
 
 from django.urls import reverse
@@ -73,3 +75,46 @@ class StatisticExplorerTests(LoggedInTestCase):
             resp = self.client.get(reverse('statistic_explorer_pdf'))
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp['Content-Type'].startswith('text/html'))
+
+
+class QuoteValueStatsTests(LoggedInTestCase):
+    """Average / lowest / highest quote value in 'Sales Enquiries by Status'."""
+
+    def test_average_lowest_highest_ignore_zero_value_quotes(self):
+        self.make_enquiry(job_number='1', value='100', status='Awarded')
+        self.make_enquiry(job_number='2', value='300', status='Rejected')
+        self.make_enquiry(job_number='3', value='500', status='Pending')
+        self.make_enquiry(job_number='4', value='0', status='Pending')  # unpriced
+        resp = self.client.get(reverse('statistic_explorer'))
+        stats = resp.context['quote_value_stats']
+        self.assertEqual(stats['priced_count'], 3)
+        self.assertEqual(stats['avg'], Decimal('300'))
+        self.assertEqual(stats['min'], Decimal('100'))
+        self.assertEqual(stats['max'], Decimal('500'))
+        self.assertContains(resp, 'Average Quote')
+        self.assertContains(resp, '£300.00')
+        self.assertContains(resp, '£0 quotes excluded')
+
+    def test_stats_follow_the_date_filter(self):
+        self.make_enquiry(job_number='1', value='100', date=date(2026, 1, 10))
+        self.make_enquiry(job_number='2', value='900', date=date(2026, 2, 10))
+        resp = self.client.get(reverse('statistic_explorer'),
+                               {'filter_type': 'month', 'year': 2026, 'month': 2})
+        stats = resp.context['quote_value_stats']
+        self.assertEqual(stats['priced_count'], 1)
+        self.assertEqual(stats['min'], Decimal('900'))
+        self.assertEqual(stats['max'], Decimal('900'))
+
+    def test_no_priced_quotes_shows_message_instead_of_values(self):
+        self.make_enquiry(job_number='1', value='0')
+        resp = self.client.get(reverse('statistic_explorer'))
+        self.assertEqual(resp.context['quote_value_stats']['priced_count'], 0)
+        self.assertIsNone(resp.context['quote_value_stats']['avg'])
+        self.assertContains(resp, 'No priced quotes in this period')
+
+    def test_pdf_shows_quote_value_stats(self):
+        self.make_enquiry(job_number='1', value='250')
+        with mock.patch.dict(sys.modules, {'weasyprint': None}):  # HTML fallback
+            resp = self.client.get(reverse('statistic_explorer_pdf'))
+        self.assertContains(resp, 'Highest Quote')
+        self.assertContains(resp, '£250.00')

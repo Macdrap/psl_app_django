@@ -2,6 +2,9 @@
 
 Reconstructed from git history. Newest first.
 
+## Unreleased (next version)
+- Statistic Explorer: "Sales Enquiries by Status" shows Average, Lowest and Highest quote value for the selected period (also in the PDF export). £0 quotes are excluded as unpriced.
+
 ## 2026-11-23 — Version 1.1.1
 - Docs: `CLAUDE.md`, `docs/` (architecture, deployment, known issues, changelog), rewritten README, `.env.example`.
 - Tests: first real test suite (59 tests across all apps).

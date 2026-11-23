@@ -2,7 +2,7 @@ from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
 from django.template.loader import render_to_string
-from django.db.models import Count, Sum, Q
+from django.db.models import Avg, Count, Max, Min, Sum, Q
 from datetime import datetime, date
 from decimal import Decimal
 
@@ -107,6 +107,15 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
         # Calculate totals
         total_count = sum(d['count'] for d in sales_data.values())
         total_value = sum(d['value'] for d in sales_data.values())
+
+        # Average / lowest / highest quote value. £0 quotes are unpriced
+        # placeholders, so they are left out (otherwise the lowest is always £0).
+        quote_value_stats = enquiries.filter(value__gt=0).aggregate(
+            priced_count=Count('id'),
+            avg=Avg('value'),
+            min=Min('value'),
+            max=Max('value'),
+        )
 
         # Calculate percentages (by count and by value)
         for key in sales_data:
@@ -354,6 +363,7 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
             'sales_data': sales_data,
             'sales_total_count': total_count,
             'sales_total_value': total_value,
+            'quote_value_stats': quote_value_stats,
 
             # Feedback data for chart
             'feedback_data': feedback_data,

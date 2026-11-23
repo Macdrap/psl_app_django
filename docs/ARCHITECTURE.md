@@ -96,7 +96,7 @@ All in `sales_tracker/views.py::edit_sales_enquiry` unless noted.
 
 ## Statistic Explorer
 
-`StatisticExplorerView.get_context_data` (≈400 lines) computes, over **SalesEnquiry** records filtered by `filter_type` = `all` | `month` (`year`,`month`) | `range` (`date_from`,`date_to`): status breakdown (count/value/%), feedback reasons, sector breakdown (with win rates), client-status breakdown, referral sources. Chart data is passed as lists to Chart.js in the template. Sector colours come from `_palette` indexed by `SECTOR_CHOICES` order. `StatisticExplorerPDFView` re-uses that context and renders `statistic_explorer_pdf.html` (pure HTML/CSS with `@page` rules, no JS) to a PDF with WeasyPrint. If WeasyPrint or its Pango system libraries are unavailable (`ImportError`/`OSError`, e.g. on Windows) it returns the same page as printable HTML with a Print button.
+`StatisticExplorerView.get_context_data` (≈400 lines) computes, over **SalesEnquiry** records filtered by `filter_type` = `all` | `month` (`year`,`month`) | `range` (`date_from`,`date_to`): status breakdown (count/value/%, plus average/lowest/highest quote value over quotes with value > £0), feedback reasons, sector breakdown (with win rates), client-status breakdown, referral sources. Chart data is passed as lists to Chart.js in the template. Sector colours come from `_palette` indexed by `SECTOR_CHOICES` order. `StatisticExplorerPDFView` re-uses that context and renders `statistic_explorer_pdf.html` (pure HTML/CSS with `@page` rules, no JS) to a PDF with WeasyPrint. If WeasyPrint or its Pango system libraries are unavailable (`ImportError`/`OSError`, e.g. on Windows) it returns the same page as printable HTML with a Print button.
 
 ## URLs
 
