@@ -18,6 +18,20 @@ class ClientListTests(LoggedInTestCase):
         row = resp.context['page_obj'][0]
         self.assertEqual((row.contact_count, row.enquiry_count, row.award_count), (2, 3, 1))
 
+    def test_quoted_value_badge_counts_priced_quotes_only(self):
+        client = self.make_client('Acme Ltd')
+        self.make_enquiry(job_number='1', value='1000', status='Awarded', client=client)
+        self.make_enquiry(job_number='2', value='250', status='Pending', client=client)
+        self.make_enquiry(job_number='3', value='0', status='Pending', client=client)
+        self.make_enquiry(job_number='4', value='800', status='Not_Quoted', client=client)
+        self.make_client('No Quotes Ltd')
+        resp = self.client.get(reverse('clients_list'))
+        rows = {c.name: c for c in resp.context['page_obj']}
+        self.assertEqual(rows['Acme Ltd'].quoted_value, 1250)
+        self.assertIsNone(rows['No Quotes Ltd'].quoted_value)
+        self.assertContains(resp, '£1,250 quoted')
+        self.assertContains(resp, '?client=Acme%20Ltd#client-analysis-section')
+
     def test_search_by_contact_email(self):
         self.make_contact(self.make_client('Acme'), 'A', email='finder@example.com')
         self.make_client('Other')

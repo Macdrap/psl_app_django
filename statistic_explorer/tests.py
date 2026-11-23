@@ -1,6 +1,8 @@
 """Smoke/regression tests for the Statistic Explorer."""
 import sys
 import types
+from datetime import date
+from decimal import Decimal
 from unittest import mock
 
 from django.urls import reverse
@@ -73,3 +75,128 @@ class StatisticExplorerTests(LoggedInTestCase):
             resp = self.client.get(reverse('statistic_explorer_pdf'))
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp['Content-Type'].startswith('text/html'))
+
+
+class QuoteValueStatsTests(LoggedInTestCase):
+    """Average / lowest / highest quote value in 'Sales Enquiries by Status'."""
+
+    def test_average_lowest_highest_ignore_zero_value_quotes(self):
+        self.make_enquiry(job_number='1', value='100', status='Awarded')
+        self.make_enquiry(job_number='2', value='300', status='Rejected')
+        self.make_enquiry(job_number='3', value='500', status='Pending')
+        self.make_enquiry(job_number='4', value='0', status='Pending')  # unpriced
+        resp = self.client.get(reverse('statistic_explorer'))
+        stats = resp.context['quote_value_stats']
+        self.assertEqual(stats['priced_count'], 3)
+        self.assertEqual(stats['avg'], Decimal('300'))
+        self.assertEqual(stats['min'], Decimal('100'))
+        self.assertEqual(stats['max'], Decimal('500'))
+        self.assertContains(resp, 'Average Quote')
+        self.assertContains(resp, '£300.00')
+        self.assertContains(resp, '£0 quotes excluded')
+
+    def test_stats_follow_the_date_filter(self):
+        self.make_enquiry(job_number='1', value='100', date=date(2026, 1, 10))
+        self.make_enquiry(job_number='2', value='900', date=date(2026, 2, 10))
+        resp = self.client.get(reverse('statistic_explorer'),
+                               {'filter_type': 'month', 'year': 2026, 'month': 2})
+        stats = resp.context['quote_value_stats']
+        self.assertEqual(stats['priced_count'], 1)
+        self.assertEqual(stats['min'], Decimal('900'))
+        self.assertEqual(stats['max'], Decimal('900'))
+
+    def test_no_priced_quotes_shows_message_instead_of_values(self):
+        self.make_enquiry(job_number='1', value='0')
+        resp = self.client.get(reverse('statistic_explorer'))
+        self.assertEqual(resp.context['quote_value_stats']['priced_count'], 0)
+        self.assertIsNone(resp.context['quote_value_stats']['avg'])
+        self.assertContains(resp, 'No priced quotes in this period')
+
+    def test_pdf_shows_quote_value_stats(self):
+        self.make_enquiry(job_number='1', value='250')
+        with mock.patch.dict(sys.modules, {'weasyprint': None}):  # HTML fallback
+            resp = self.client.get(reverse('statistic_explorer_pdf'))
+        self.assertContains(resp, 'Highest Quote')
+        self.assertContains(resp, '£250.00')
+
+
+class ClientAnalysisTests(LoggedInTestCase):
+    """Per-client quote table + search in 'Client Analysis'."""
+
+    def rows_by_name(self, resp):
+        return {row['name']: row for row in resp.context['client_rows']}
+
+    def test_per_client_counts_values_and_win_rate(self):
+        acme = self.make_client('Acme Ltd', sector='architects')
+        self.make_enquiry(job_number='1', value='1000', status='Awarded', client=acme)
+        self.make_enquiry(job_number='2', value='500', status='Rejected', client=acme)
+        self.make_enquiry(job_number='3', value='300', status='Pending', client=acme,
+                          date=date(2026, 5, 1))
+        self.make_enquiry(job_number='4', value='200', status='Awarded', client=acme,
+                          date=date(2026, 6, 15))
+        resp = self.client.get(reverse('statistic_explorer'))
+        row = self.rows_by_name(resp)['Acme Ltd']
+        self.assertEqual(row['sector'], 'Architects')
+        self.assertEqual(row['quote_count'], 4)
+        self.assertEqual(row['total_value'], Decimal('2000'))
+        self.assertEqual(row['avg_value'], Decimal('500'))
+        self.assertEqual((row['awarded_count'], row['awarded_value']), (2, Decimal('1200')))
+        self.assertEqual((row['rejected_count'], row['rejected_value']), (1, Decimal('500')))
+        self.assertEqual((row['pending_count'], row['pending_value']), (1, Decimal('300')))
+        self.assertEqual(row['win_rate'], 50.0)        # 2 of 4 quotes
+        self.assertEqual(row['win_rate_value'], 60.0)  # £1200 of £2000
+        self.assertEqual(row['last_date'], max(date.today(), date(2026, 6, 15)))
+
+    def test_zero_value_and_not_quoted_enquiries_are_excluded(self):
+        acme = self.make_client('Acme Ltd')
+        self.make_enquiry(job_number='1', value='400', status='Pending', client=acme)
+        self.make_enquiry(job_number='2', value='0', status='Pending', client=acme)
+        self.make_enquiry(job_number='3', value='900', status='Not_Quoted', client=acme)
+        only_unpriced = self.make_client('Unpriced Co')
+        self.make_enquiry(job_number='4', value='0', status='Pending', client=only_unpriced)
+        resp = self.client.get(reverse('statistic_explorer'))
+        rows = self.rows_by_name(resp)
+        self.assertEqual(rows['Acme Ltd']['quote_count'], 1)
+        self.assertEqual(rows['Acme Ltd']['total_value'], Decimal('400'))
+        self.assertNotIn('Unpriced Co', rows)
+
+    def test_sorted_by_total_quoted_highest_first(self):
+        for name, value in (('Small', '100'), ('Big', '9000'), ('Mid', '500')):
+            self.make_enquiry(job_number=name, value=value, client=self.make_client(name))
+        resp = self.client.get(reverse('statistic_explorer'))
+        self.assertEqual([r['name'] for r in resp.context['client_rows']], ['Big', 'Mid', 'Small'])
+
+    def test_rows_follow_the_date_filter(self):
+        acme = self.make_client('Acme Ltd')
+        self.make_enquiry(job_number='1', value='100', client=acme, date=date(2026, 1, 10))
+        self.make_enquiry(job_number='2', value='900', client=acme, date=date(2026, 2, 10))
+        resp = self.client.get(reverse('statistic_explorer'),
+                               {'filter_type': 'month', 'year': 2026, 'month': 2})
+        row = self.rows_by_name(resp)['Acme Ltd']
+        self.assertEqual((row['quote_count'], row['total_value']), (1, Decimal('900')))
+
+    def test_page_renders_table_search_and_json_data(self):
+        self.make_enquiry(job_number='1', value='1234', client=self.make_client('Acme Ltd'))
+        resp = self.client.get(reverse('statistic_explorer'))
+        self.assertContains(resp, 'id="client-analysis-section"')
+        self.assertContains(resp, 'id="clientSearch"')
+        self.assertContains(resp, 'id="client-rows-data"')
+        self.assertContains(resp, '£1,234')
+
+    def test_no_quotes_shows_empty_message(self):
+        resp = self.client.get(reverse('statistic_explorer'))
+        self.assertEqual(resp.context['client_rows'], [])
+        self.assertContains(resp, 'No client quotes available')
+
+    def test_pdf_shows_top_clients_and_can_be_hidden(self):
+        for i in range(25):
+            self.make_enquiry(job_number=str(i), value=str(100 + i),
+                              client=self.make_client(f'Client {i:02d}'))
+        with mock.patch.dict(sys.modules, {'weasyprint': None}):  # HTML fallback
+            resp = self.client.get(reverse('statistic_explorer_pdf'))
+            hidden = self.client.get(reverse('statistic_explorer_pdf'),
+                                     {'show_client_analysis': 'false'})
+        self.assertContains(resp, 'Top 20 of 25 Clients')
+        self.assertContains(resp, 'Client 24')      # highest value
+        self.assertNotContains(resp, 'Client 04')   # 21st by value, outside top 20
+        self.assertNotContains(hidden, 'Client Analysis')

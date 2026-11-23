@@ -178,6 +178,8 @@
     .badge-contacts { background: #dbeafe; color: #1e40af; }
     .badge-enquiry  { background: #ede9fe; color: rgb(88,70,164); }
     .badge-award    { background: #d1fae5; color: #065f46; }
+    a.badge-link    { text-decoration: none; }
+    a.badge-link:hover { filter: brightness(0.95); text-decoration: underline; }
 
     /* ── Contacts sub-table ── */
     .contacts-section {
@@ -401,6 +403,10 @@
                 <span class="badge badge-contacts">{{ client.contact_count }} contact{{ client.contact_count|pluralize }}</span>
                 {% if client.enquiry_count %}
                     <span class="badge badge-enquiry">{{ client.enquiry_count }} enquir{{ client.enquiry_count|pluralize:"y,ies" }}</span>
+                {% endif %}
+                {% if client.quoted_value %}
+                    <a href="{% url 'statistic_explorer' %}?client={{ client.name|urlencode }}#client-analysis-section"
+                       class="badge badge-award badge-link" title="See {{ client.name }}'s quote figures in Statistic Explorer">£{{ client.quoted_value|floatformat:"0g" }} quoted</a>
                 {% endif %}
             </div>
             <div class="client-card-actions">

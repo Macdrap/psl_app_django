@@ -18,6 +18,10 @@ class SalesEnquiry(models.Model):
         ('Other', 'Other')
     ]
 
+    # Statuses that count as a quote in client quote figures (Statistic Explorer
+    # Client Analysis, Clients page). Enquiries at £0 are excluded as well.
+    QUOTED_STATUSES = ('Pending', 'Awarded', 'Rejected')
+
     REFERRAL_CHOICES = [
         ('google', 'Google'),
         ('recommendation', 'Recommendation'),

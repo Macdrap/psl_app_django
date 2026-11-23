@@ -358,6 +358,161 @@
         margin-bottom: 1rem;
     }
 
+    /* Client Analysis */
+    .client-search-bar {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.25rem;
+    }
+
+    .client-search-input {
+        flex: 1;
+        min-width: 240px;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.95rem;
+    }
+
+    .client-search-input:focus {
+        outline: none;
+        border-color: rgb(88,70,164);
+    }
+
+    .client-search-count {
+        color: #6b7280;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .client-detail {
+        background: #f9fafb;
+        border: 2px solid rgb(88,70,164);
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .client-detail[hidden] { display: none; }
+
+    .client-detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .client-detail-name {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .client-detail-meta {
+        color: #6b7280;
+        font-size: 0.85rem;
+        margin-top: 0.2rem;
+    }
+
+    .client-detail-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .client-detail-close {
+        background: none;
+        border: none;
+        font-size: 1.6rem;
+        line-height: 1;
+        color: #6b7280;
+        cursor: pointer;
+        padding: 0 0.25rem;
+    }
+
+    .client-detail-close:hover { color: #1f2937; }
+
+    .client-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .client-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    .client-detail-grid .value { font-size: 1.4rem; }
+
+    .client-detail-grid .sub {
+        color: #6b7280;
+        font-size: 0.8rem;
+        margin-top: 0.2rem;
+    }
+
+    .btn-sm {
+        padding: 0.4rem 0.9rem;
+        font-size: 0.85rem;
+    }
+
+    .client-table-wrap {
+        overflow-x: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+    }
+
+    .client-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    .client-table th {
+        background: #f3f4f6;
+        color: #374151;
+        font-weight: 600;
+        text-align: left;
+        padding: 0.65rem 0.75rem;
+        white-space: nowrap;
+        user-select: none;
+    }
+
+    .client-table th[data-sort] { cursor: pointer; }
+    .client-table th[data-sort]:hover { background: #e5e7eb; }
+    .client-table th.sorted.desc::after { content: ' ▼'; font-size: 0.7rem; }
+    .client-table th.sorted.asc::after  { content: ' ▲'; font-size: 0.7rem; }
+
+    .client-table td {
+        padding: 0.6rem 0.75rem;
+        border-top: 1px solid #f3f4f6;
+        color: #374151;
+        white-space: nowrap;
+    }
+
+    .client-table tbody tr { cursor: pointer; }
+    .client-table tbody tr:hover { background: #f9fafb; }
+    .client-table tbody tr.selected { background: #ede9fe; }
+    .client-table .num { text-align: right; }
+    .client-table .strong { font-weight: 700; color: #1f2937; }
+    .client-table .client-name { font-weight: 600; color: #1f2937; white-space: normal; min-width: 180px; }
+    .client-table .rank { color: #9ca3af; }
+    .client-table .win { color: #10b981; font-weight: 600; }
+    .muted { color: #9ca3af; font-size: 0.8rem; }
+
+    .client-table-footer {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 0.75rem;
+        color: #6b7280;
+        font-size: 0.85rem;
+    }
+
     /* Export Button Group */
     .export-buttons {
         display: flex;
@@ -443,6 +598,10 @@
         <div class="toggle-item">
             <input type="checkbox" id="toggle-sector" checked>
             <label for="toggle-sector">Sector Analysis</label>
+        </div>
+        <div class="toggle-item">
+            <input type="checkbox" id="toggle-client-analysis" checked>
+            <label for="toggle-client-analysis">Client Analysis</label>
         </div>
         <div class="toggle-item">
             <input type="checkbox" id="toggle-client-status" checked>
@@ -619,6 +778,30 @@
         </div>
     </div>
 
+    <div class="summary-row" id="quote-value-stats">
+        {% if quote_value_stats.priced_count %}
+        <div class="summary-card">
+            <div class="label">Average Quote</div>
+            <div class="value">£{{ quote_value_stats.avg|floatformat:2 }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Lowest Quote</div>
+            <div class="value">£{{ quote_value_stats.min|floatformat:2 }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Highest Quote</div>
+            <div class="value">£{{ quote_value_stats.max|floatformat:2 }}</div>
+        </div>
+        <div class="summary-card" style="grid-column:1 / -1; padding-top:0; color:#6b7280; font-size:0.8rem;">
+            Based on {{ quote_value_stats.priced_count }} priced quote{{ quote_value_stats.priced_count|pluralize }}{% if quote_value_stats.priced_count != sales_total_count %} (£0 quotes excluded){% endif %}
+        </div>
+        {% else %}
+        <div class="summary-card" style="grid-column:1 / -1; color:#6b7280; font-size:0.9rem;">
+            No priced quotes in this period — average, lowest and highest are not available.
+        </div>
+        {% endif %}
+    </div>
+
     {% else %}
     <div class="no-data">
         <div class="no-data-icon">📊</div>
@@ -770,6 +953,99 @@
     {% endif %}
 </div>
 
+<!-- ── Client Analysis (per-client quotes, with search) ───────────────── -->
+<div class="chart-section" id="client-analysis-section">
+    <div class="chart-header">
+        <h2>Client Analysis</h2>
+        <span class="filter-badge">{{ filter_description }}</span>
+    </div>
+
+    {% if client_rows %}
+    <div class="client-search-bar">
+        <input type="search" id="clientSearch" class="client-search-input"
+               placeholder="Search a client to see their quotes, win rate and totals…"
+               autocomplete="off" aria-label="Search clients">
+        <span class="client-search-count" id="clientSearchCount"></span>
+    </div>
+
+    <!-- Detail card for one client: filled by JS from client-rows-data -->
+    <div class="client-detail" id="clientDetail" hidden>
+        <div class="client-detail-header">
+            <div>
+                <div class="client-detail-name" id="cdName"></div>
+                <div class="client-detail-meta" id="cdMeta"></div>
+            </div>
+            <div class="client-detail-actions">
+                <a href="#" id="cdLink" class="btn btn-secondary btn-sm">View enquiries in Sales Tracker &rarr;</a>
+                <button type="button" id="cdClose" class="client-detail-close" aria-label="Close client details">&times;</button>
+            </div>
+        </div>
+        <div class="client-detail-grid">
+            <div class="summary-card"><div class="label">Quotes</div><div class="value" id="cdQuotes"></div></div>
+            <div class="summary-card"><div class="label">Total Quoted</div><div class="value" id="cdTotal"></div></div>
+            <div class="summary-card"><div class="label">Win Rate</div><div class="value green" id="cdWin"></div><div class="sub" id="cdWinValue"></div></div>
+            <div class="summary-card"><div class="label">Average Quote</div><div class="value" id="cdAvg"></div></div>
+            <div class="summary-card"><div class="label">Awarded</div><div class="value green" id="cdAwarded"></div><div class="sub" id="cdAwardedValue"></div></div>
+            <div class="summary-card"><div class="label">Pending</div><div class="value amber" id="cdPending"></div><div class="sub" id="cdPendingValue"></div></div>
+            <div class="summary-card"><div class="label">Rejected</div><div class="value red" id="cdRejected"></div><div class="sub" id="cdRejectedValue"></div></div>
+            <div class="summary-card"><div class="label">Last Quote</div><div class="value" id="cdLast"></div></div>
+        </div>
+    </div>
+
+    <div class="client-table-wrap">
+        <table class="client-table" id="clientTable">
+            <thead>
+                <tr>
+                    <th class="num">#</th>
+                    <th data-sort="name" data-type="text">Client</th>
+                    <th data-sort="sector" data-type="text">Sector</th>
+                    <th data-sort="quotes" data-type="num" class="num">Quotes</th>
+                    <th data-sort="total" data-type="num" class="num sorted desc">Total Quoted</th>
+                    <th data-sort="awarded" data-type="num" class="num">Awarded</th>
+                    <th data-sort="win" data-type="num" class="num">Win Rate</th>
+                    <th data-sort="avg" data-type="num" class="num">Avg Quote</th>
+                    <th data-sort="last" data-type="text" class="num">Last Quote</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in client_rows %}
+                <tr data-id="{{ row.id }}"
+                    data-name="{{ row.name|lower }}" data-sector="{{ row.sector|lower }}"
+                    data-quotes="{{ row.quote_count }}" data-total="{{ row.total_value }}"
+                    data-awarded="{{ row.awarded_value }}" data-win="{{ row.win_rate }}"
+                    data-avg="{{ row.avg_value }}" data-last="{{ row.last_date|date:'Y-m-d' }}"
+                    title="Click to see {{ row.name }}'s figures">
+                    <td class="num rank">{{ forloop.counter }}</td>
+                    <td class="client-name">{{ row.name }}</td>
+                    <td>{{ row.sector }}</td>
+                    <td class="num">{{ row.quote_count }}</td>
+                    <td class="num strong">£{{ row.total_value|floatformat:"0g" }}</td>
+                    <td class="num">{{ row.awarded_count }} <span class="muted">/ £{{ row.awarded_value|floatformat:"0g" }}</span></td>
+                    <td class="num win">{{ row.win_rate }}%</td>
+                    <td class="num">£{{ row.avg_value|floatformat:"0g" }}</td>
+                    <td class="num">{{ row.last_date|date:'d M Y' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="client-table-footer">
+        <span id="clientShowingText"></span>
+        {% if client_rows|length > client_table_top_n %}
+        <button type="button" id="clientShowAll" class="btn-reset" style="border:none; cursor:pointer;">Show all {{ client_rows|length }} clients</button>
+        {% endif %}
+        <span class="muted" style="margin-left:auto;">Quotes = Pending, Awarded or Rejected enquiries over £0. Win rate = awarded ÷ quotes.</span>
+    </div>
+    {{ client_rows|json_script:"client-rows-data" }}
+    {% else %}
+    <div class="no-data">
+        <div class="no-data-icon">👥</div>
+        <h3>No client quotes available</h3>
+        <p>No priced quotes with a linked client found for the selected period.</p>
+    </div>
+    {% endif %}
+</div>
+
 <!-- ── Client Status Analysis ─────────────────────────────────────────── -->
 <div class="chart-section" id="client-status-section">
     <div class="chart-header">
@@ -913,6 +1189,7 @@
     const toggleSector        = document.getElementById('toggle-sector');
     const toggleClientStatus  = document.getElementById('toggle-client-status');
     const toggleReferral      = document.getElementById('toggle-referral');
+    const toggleClientAnalysis = document.getElementById('toggle-client-analysis');
 
     function bindToggle(checkbox, sectionId) {
         const section = document.getElementById(sectionId);
@@ -925,6 +1202,7 @@
     bindToggle(toggleSector,       'sector-section');
     bindToggle(toggleClientStatus, 'client-status-section');
     bindToggle(toggleReferral,     'referral-section');
+    bindToggle(toggleClientAnalysis, 'client-analysis-section');
 
     // PDF Export with selected sections
     document.getElementById('exportPdfBtn').addEventListener('click', function() {
@@ -934,10 +1212,137 @@
         urlParams.set('show_sector',        toggleSector.checked);
         urlParams.set('show_client_status', toggleClientStatus.checked);
         urlParams.set('show_referral',      toggleReferral.checked);
+        urlParams.set('show_client_analysis', toggleClientAnalysis.checked);
 
         const exportUrl = '{% url "statistic_explorer_pdf" %}?' + urlParams.toString();
         window.open(exportUrl, '_blank');
     });
+
+    // ── Client Analysis: search, sort, show all, detail card ──────────────
+    (function () {
+        const dataEl = document.getElementById('client-rows-data');
+        if (!dataEl) return;
+        const clients = {};
+        JSON.parse(dataEl.textContent).forEach(c => { clients[c.id] = c; });
+
+        const TOP_N       = {{ client_table_top_n }};
+        const table       = document.getElementById('clientTable');
+        const tbody       = table.querySelector('tbody');
+        const rows        = Array.from(tbody.querySelectorAll('tr'));
+        const search      = document.getElementById('clientSearch');
+        const countEl     = document.getElementById('clientSearchCount');
+        const showingEl   = document.getElementById('clientShowingText');
+        const showAllBtn  = document.getElementById('clientShowAll');
+        const detail      = document.getElementById('clientDetail');
+        const salesUrl    = '{% url "sales_tracker" %}';
+        let showAll = false;
+        let selectedId = null;
+
+        const gbp  = v => '£' + Number(v).toLocaleString('en-GB', {maximumFractionDigits: 0});
+        const gbp2 = v => '£' + Number(v).toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        const fmtDate = iso => iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'}) : '—';
+        const set = (id, text) => { document.getElementById(id).textContent = text; };
+
+        function render() {
+            const q = search.value.trim().toLowerCase();
+            let matches = 0, shown = 0;
+            tbody.querySelectorAll('tr').forEach(tr => {
+                const isMatch = !q || tr.dataset.name.includes(q);
+                if (isMatch) matches++;
+                // Searching shows every match; otherwise the top N unless "Show all".
+                const visible = isMatch && (q || showAll || matches <= TOP_N);
+                tr.style.display = visible ? '' : 'none';
+                if (visible) shown++;
+            });
+            countEl.textContent = q ? `${matches} of ${rows.length} clients match` : '';
+            showingEl.textContent = `Showing ${shown} of ${rows.length} clients`;
+            if (showAllBtn) showAllBtn.style.display = (q || showAll) ? 'none' : '';
+            return matches;
+        }
+
+        function openDetail(id) {
+            const c = clients[id];
+            if (!c) return;
+            selectedId = id;
+            set('cdName', c.name);
+            set('cdMeta', [c.sector, c.client_status].filter(Boolean).join(' · '));
+            set('cdQuotes', c.quote_count);
+            set('cdTotal', gbp2(c.total_value));
+            set('cdWin', c.win_rate + '%');
+            set('cdWinValue', c.win_rate_value + '% by value');
+            set('cdAvg', gbp2(c.avg_value));
+            set('cdAwarded', c.awarded_count);
+            set('cdAwardedValue', gbp2(c.awarded_value));
+            set('cdPending', c.pending_count);
+            set('cdPendingValue', gbp2(c.pending_value));
+            set('cdRejected', c.rejected_count);
+            set('cdRejectedValue', gbp2(c.rejected_value));
+            set('cdLast', fmtDate(c.last_date));
+            document.getElementById('cdLink').href = salesUrl + '?search=' + encodeURIComponent(c.name);
+            rows.forEach(tr => tr.classList.toggle('selected', tr.dataset.id === String(id)));
+            detail.hidden = false;
+        }
+
+        function closeDetail() {
+            selectedId = null;
+            detail.hidden = true;
+            rows.forEach(tr => tr.classList.remove('selected'));
+        }
+
+        search.addEventListener('input', function () {
+            const matches = render();
+            const q = search.value.trim().toLowerCase();
+            const visible = rows.filter(tr => tr.style.display !== 'none');
+            // One match, or an exact name match: open that client's figures.
+            const exact = visible.find(tr => tr.dataset.name === q);
+            if (q && (matches === 1 || exact)) {
+                openDetail((exact || visible[0]).dataset.id);
+            } else if (!q || (selectedId && !visible.some(tr => tr.dataset.id === String(selectedId)))) {
+                closeDetail();
+            }
+        });
+
+        tbody.addEventListener('click', function (e) {
+            const tr = e.target.closest('tr');
+            if (!tr) return;
+            if (selectedId === tr.dataset.id) { closeDetail(); return; }
+            openDetail(tr.dataset.id);
+            detail.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+        });
+
+        document.getElementById('cdClose').addEventListener('click', closeDetail);
+        if (showAllBtn) showAllBtn.addEventListener('click', () => { showAll = true; render(); });
+
+        // Column sorting (click again to reverse)
+        table.querySelectorAll('th[data-sort]').forEach(th => {
+            th.addEventListener('click', function () {
+                const key = th.dataset.sort;
+                const isNum = th.dataset.type === 'num';
+                const dir = th.classList.contains('sorted') && th.classList.contains('desc') ? 'asc'
+                          : th.classList.contains('sorted') ? 'desc'
+                          : (isNum || key === 'last' ? 'desc' : 'asc');
+                table.querySelectorAll('th').forEach(h => h.classList.remove('sorted', 'asc', 'desc'));
+                th.classList.add('sorted', dir);
+                const sorted = rows.slice().sort((a, b) => {
+                    let av = a.dataset[key], bv = b.dataset[key];
+                    let cmp = isNum ? parseFloat(av) - parseFloat(bv) : av.localeCompare(bv);
+                    return dir === 'asc' ? cmp : -cmp;
+                });
+                sorted.forEach(tr => tbody.appendChild(tr));
+                render();
+            });
+        });
+
+        render();
+
+        // Arriving from the Clients page (?client=Name): open that client.
+        const preset = new URLSearchParams(window.location.search).get('client');
+        if (preset) {
+            search.value = preset;
+            search.dispatchEvent(new Event('input'));
+            document.getElementById('client-analysis-section').scrollIntoView({block: 'start'});
+        }
+    })();
 
     {% if sales_total_count > 0 %}
     const salesColors  = ['#10b981', '#ef4444', '#f59e0b'];

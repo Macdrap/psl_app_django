@@ -2,6 +2,11 @@
 
 Reconstructed from git history. Newest first.
 
+## Unreleased (next version)
+- Statistic Explorer: "Sales Enquiries by Status" shows Average, Lowest and Highest quote value for the selected period (also in the PDF export). £0 quotes are excluded as unpriced.
+- Statistic Explorer: new **Client Analysis** section — one row per client quoted for (quotes, total quoted, awarded count/value, win rate, average quote, last quote), sortable, top 20 with "Show all", and a client search that opens a detail card (awarded/pending/rejected, win rate by count and value, link to the client's enquiries in Sales Tracker). Follows the date filter; top 20 in the PDF export. A quote = Pending/Awarded/Rejected enquiry over £0 (`SalesEnquiry.QUOTED_STATUSES`).
+- Clients page: each client shows a "£X quoted" badge (all time) linking to its figures in Statistic Explorer (`?client=<name>`).
+
 ## 2026-11-23 — Version 1.1.1
 - Docs: `CLAUDE.md`, `docs/` (architecture, deployment, known issues, changelog), rewritten README, `.env.example`.
 - Tests: first real test suite (59 tests across all apps).

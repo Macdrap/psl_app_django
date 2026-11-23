@@ -245,6 +245,26 @@
                 </tr>
             </tfoot>
         </table>
+        {% if quote_value_stats.priced_count %}
+        <table class="breakdown-table" style="margin-top:12px;">
+            <thead>
+                <tr>
+                    <th>Average Quote</th>
+                    <th>Lowest Quote</th>
+                    <th>Highest Quote</th>
+                    <th>Priced Quotes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>£{{ quote_value_stats.avg|floatformat:2 }}</td>
+                    <td>£{{ quote_value_stats.min|floatformat:2 }}</td>
+                    <td>£{{ quote_value_stats.max|floatformat:2 }}</td>
+                    <td>{{ quote_value_stats.priced_count }}{% if quote_value_stats.priced_count != sales_total_count %} (£0 excluded){% endif %}</td>
+                </tr>
+            </tbody>
+        </table>
+        {% endif %}
     </div>
     {% endif %}
 
@@ -335,6 +355,42 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+    {% endif %}
+
+    {% if show_client_analysis and client_rows %}
+    <!-- Client analysis: top clients by total quoted -->
+    <div class="section">
+        <div class="section-title">Client Analysis &mdash; Top {{ client_rows_top|length }} of {{ client_rows|length }} Clients by Value Quoted</div>
+        <table class="breakdown-table client-analysis-table" style="font-size:11px;">
+            <thead>
+                <tr>
+                    <th>Client</th>
+                    <th>Sector</th>
+                    <th>Quotes</th>
+                    <th>Total Quoted</th>
+                    <th>Awarded</th>
+                    <th>Win Rate</th>
+                    <th>Avg Quote</th>
+                    <th>Last Quote</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in client_rows_top %}
+                <tr>
+                    <td><strong>{{ row.name }}</strong></td>
+                    <td>{{ row.sector }}</td>
+                    <td>{{ row.quote_count }}</td>
+                    <td>£{{ row.total_value|floatformat:"2g" }}</td>
+                    <td>{{ row.awarded_count }} / £{{ row.awarded_value|floatformat:"2g" }}</td>
+                    <td class="status-awarded">{{ row.win_rate }}%</td>
+                    <td>£{{ row.avg_value|floatformat:"2g" }}</td>
+                    <td>{{ row.last_date|date:'d M Y' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p style="font-size:10px; color:#6b7280; margin-top:6px;">Quotes = Pending, Awarded or Rejected enquiries over £0. Win rate = awarded &divide; quotes.</p>
     </div>
     {% endif %}
 

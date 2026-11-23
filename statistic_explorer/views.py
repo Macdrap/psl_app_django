@@ -2,12 +2,72 @@ from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
 from django.template.loader import render_to_string
-from django.db.models import Count, Sum, Q
+from django.db.models import Avg, Count, Max, Min, Sum, Q
 from datetime import datetime, date
 from decimal import Decimal
 
 from sales_tracker.models import SalesEnquiry
 from clients.models import SECTOR_CHOICES, CLIENT_STATUS_CHOICES
+
+# Statuses that count as a quote in the Client Analysis section. Not Quoted is
+# left out, and so are £0 enquiries (unpriced placeholders).
+QUOTED_STATUSES = SalesEnquiry.QUOTED_STATUSES
+# Rows shown before "Show all" on the page, and the rows in the PDF.
+CLIENT_TABLE_TOP_N = 20
+
+
+def client_quote_stats(enquiries):
+    """Per-client quote figures over an already date-filtered enquiry queryset.
+
+    Returns a list of dicts sorted by total quoted value (highest first).
+    Win rates are awarded ÷ all quotes (pending included), the same as the
+    rest of the Statistic Explorer.
+    """
+    rows = (
+        enquiries
+        .filter(client__isnull=False, value__gt=0, status__in=QUOTED_STATUSES)
+        .order_by()  # clear Meta.ordering so it doesn't leak into GROUP BY
+        .values('client_id', 'client__name', 'client__sector', 'client__client_status')
+        .annotate(
+            quote_count=Count('id'),
+            total_value=Sum('value'),
+            avg_value=Avg('value'),
+            last_date=Max('date'),
+            awarded_count=Count('id', filter=Q(status='Awarded')),
+            awarded_value=Sum('value', filter=Q(status='Awarded')),
+            rejected_count=Count('id', filter=Q(status='Rejected')),
+            rejected_value=Sum('value', filter=Q(status='Rejected')),
+            pending_count=Count('id', filter=Q(status='Pending')),
+            pending_value=Sum('value', filter=Q(status='Pending')),
+        )
+    )
+    sector_labels = dict(SECTOR_CHOICES)
+    status_labels = dict(CLIENT_STATUS_CHOICES)
+    result = []
+    for r in rows:
+        zero = Decimal('0.00')
+        total = r['total_value'] or zero
+        awarded_value = r['awarded_value'] or zero
+        result.append({
+            'id': r['client_id'],
+            'name': r['client__name'],
+            'sector': sector_labels.get(r['client__sector'], r['client__sector'] or ''),
+            'client_status': status_labels.get(r['client__client_status'], r['client__client_status'] or ''),
+            'quote_count': r['quote_count'],
+            'total_value': total,
+            'avg_value': r['avg_value'] or zero,
+            'last_date': r['last_date'],
+            'awarded_count': r['awarded_count'],
+            'awarded_value': awarded_value,
+            'rejected_count': r['rejected_count'],
+            'rejected_value': r['rejected_value'] or zero,
+            'pending_count': r['pending_count'],
+            'pending_value': r['pending_value'] or zero,
+            'win_rate': round(r['awarded_count'] / r['quote_count'] * 100, 1) if r['quote_count'] else 0,
+            'win_rate_value': round(float(awarded_value) / float(total) * 100, 1) if total else 0,
+        })
+    result.sort(key=lambda row: (-row['total_value'], row['name'].lower()))
+    return result
 
 
 class StatisticExplorerView(LoginRequiredMixin, TemplateView):
@@ -107,6 +167,15 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
         # Calculate totals
         total_count = sum(d['count'] for d in sales_data.values())
         total_value = sum(d['value'] for d in sales_data.values())
+
+        # Average / lowest / highest quote value. £0 quotes are unpriced
+        # placeholders, so they are left out (otherwise the lowest is always £0).
+        quote_value_stats = enquiries.filter(value__gt=0).aggregate(
+            priced_count=Count('id'),
+            avg=Avg('value'),
+            min=Min('value'),
+            max=Max('value'),
+        )
 
         # Calculate percentages (by count and by value)
         for key in sales_data:
@@ -330,6 +399,9 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
         cs_colors        = [v['color']                       for v in active_client_statuses.values()]
         cs_total_clients = total_clients
 
+        # ── Client analysis (one row per client quoted for) ───────────────────
+        client_rows = client_quote_stats(enquiries)
+
         # Generate year range for dropdown
         year_range = range(2020, current_year + 2)
 
@@ -354,6 +426,7 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
             'sales_data': sales_data,
             'sales_total_count': total_count,
             'sales_total_value': total_value,
+            'quote_value_stats': quote_value_stats,
 
             # Feedback data for chart
             'feedback_data': feedback_data,
@@ -393,6 +466,11 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
             'cs_total_clients':   cs_total_clients,
             'cs_total_value':     total_all_enquiry_value,
 
+            # Client analysis (sorted by total quoted, highest first)
+            'client_rows':        client_rows,
+            'client_rows_top':    client_rows[:CLIENT_TABLE_TOP_N],
+            'client_table_top_n': CLIENT_TABLE_TOP_N,
+
             # Chart data as JSON-ready values
             'chart_labels': ['Awarded', 'Rejected', 'Pending'],
             'chart_values': [
@@ -421,6 +499,7 @@ class StatisticExplorerPDFView(LoginRequiredMixin, TemplateView):
         context['show_sector']          = request.GET.get('show_sector', 'true') == 'true'
         context['show_client_status']   = request.GET.get('show_client_status', 'true') == 'true'
         context['show_referral']        = request.GET.get('show_referral', 'true') == 'true'
+        context['show_client_analysis'] = request.GET.get('show_client_analysis', 'true') == 'true'
 
         # Render PDF template
         html_string = render_to_string('statistic_explorer_pdf.html', context)

@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
-from django.db.models import Q, Count, OuterRef, Subquery, IntegerField
+from django.db.models import Q, Count, Sum, OuterRef, Subquery, IntegerField, DecimalField
 from django.db.models.functions import Coalesce
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.views.decorators.http import require_GET
@@ -38,10 +38,23 @@ def clients_list(request):
         .values('c')
     )
 
+    # Total value quoted (all time), same rule as Statistic Explorer's
+    # Client Analysis: Pending/Awarded/Rejected enquiries over £0.
+    quoted_sq = (
+        SalesEnquiry.objects
+        .filter(client=OuterRef('pk'), value__gt=0,
+                status__in=SalesEnquiry.QUOTED_STATUSES)
+        .order_by()
+        .values('client')
+        .annotate(s=Sum('value'))
+        .values('s')
+    )
+
     clients = Client.objects.prefetch_related('contacts').annotate(
         contact_count=Count('contacts', distinct=True),
         enquiry_count=Coalesce(Subquery(enquiry_sq, output_field=IntegerField()), 0),
         award_count=Coalesce(Subquery(award_sq, output_field=IntegerField()), 0),
+        quoted_value=Subquery(quoted_sq, output_field=DecimalField(max_digits=14, decimal_places=2)),
     )
 
     if search_query:
