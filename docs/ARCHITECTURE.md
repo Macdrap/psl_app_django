@@ -46,7 +46,7 @@ Auth: Django's built-in login (`/login/`, `templates/registration/login.html`). 
 - `date`, `value` (Decimal), `location`, `note`.
 - `status`: `Pending` (default), `Rejected`, `Awarded`, `Not_Quoted`.
 - `feedback`: Price / Timeframe / Capability / Other, plus `other_feedback` text.
-- `referral`: google / recommendation / other — **only stored when the client is `new`** (add form).
+- `referral`: google / recommendation / other — **a client-level value stored on every enquiry**: all enquiries of a client share it (see flow 9). Entered on the add form only when Client Status is `new`; editable on the edit form.
 - `client` FK (**PROTECT** — a client with enquiries can't be deleted), `contact` FK (SET_NULL).
 - `created_by`, `created_at`, `updated_at` (the last is used by live-refresh polling).
 
@@ -76,6 +76,10 @@ All in `sales_tracker/views.py::edit_sales_enquiry` unless noted.
 6. **Delete a Monthly Award**: linked sale's status set back to `Pending`; invoices cascade.
 7. **Delete a Sales Enquiry**: its awards and their invoices cascade-delete.
 8. **Manual award** (`add_monthly_award`): no sale, no invoice — invoices are added from the awards page (`add_invoice_to_award`) or the Invoiced Jobs page.
+9. **Client referral & status** (`sales_tracker/client_sync.py`, called by `add_sales_enquiry`, `edit_sales_enquiry` and `edit_monthly_award`):
+   - Add: a referral given (Client Status `new`) is applied to all the client's enquiries; otherwise the new enquiry inherits the client's existing referral.
+   - Edit: the enquiry's referral (including blank) is applied to all the client's enquiries. If the enquiry moved to another client and the referral wasn't changed, it takes the new client's referral (if that client has one).
+   - A `new` client with more than one enquiry becomes `current` (never touches `dormant`, never goes back to `new`).
 
 ## List pages — shared conventions
 
@@ -96,7 +100,7 @@ All in `sales_tracker/views.py::edit_sales_enquiry` unless noted.
 
 ## Statistic Explorer
 
-`StatisticExplorerView.get_context_data` (≈400 lines) computes, over **SalesEnquiry** records filtered by `filter_type` = `all` | `month` (`year`,`month`) | `range` (`date_from`,`date_to`): status breakdown (count/value/%, plus average/lowest/highest quote value over quotes with value > £0), feedback reasons, sector breakdown (with win rates), client-status breakdown, referral sources. **Client Analysis**: `client_quote_stats()` returns one row per client from Pending/Awarded/Rejected enquiries over £0 (`SalesEnquiry.QUOTED_STATUSES`), sorted by total quoted; win rate = awarded ÷ quotes (pending included, as elsewhere on the page). The page renders every row and the JS shows the top 20 (`CLIENT_TABLE_TOP_N`), sorts columns, and filters by the search box; the detail card reads the rows from a `json_script` block. `?client=<name>` pre-fills the search (used by the "£X quoted" badge on the Clients page, whose total uses the same rule). Chart data is passed as lists to Chart.js in the template. Sector colours come from `_palette` indexed by `SECTOR_CHOICES` order. `StatisticExplorerPDFView` re-uses that context and renders `statistic_explorer_pdf.html` (pure HTML/CSS with `@page` rules, no JS) to a PDF with WeasyPrint. If WeasyPrint or its Pango system libraries are unavailable (`ImportError`/`OSError`, e.g. on Windows) it returns the same page as printable HTML with a Print button.
+`StatisticExplorerView.get_context_data` (≈400 lines) computes, over **SalesEnquiry** records filtered by `filter_type` = `all` | `month` (`year`,`month`) | `range` (`date_from`,`date_to`): status breakdown (count/value/%, plus average/lowest/highest quote value over quotes with value > £0), feedback reasons, sector breakdown (with win rates), client-status breakdown, referral sources. **Client Analysis**: `client_quote_stats()` returns one row per client from Pending/Awarded/Rejected enquiries over £0 (`SalesEnquiry.QUOTED_STATUSES`), sorted by total quoted; win rate = awarded ÷ quotes (pending included, as elsewhere on the page). The page renders every row and the JS shows the top 20 (`CLIENT_TABLE_TOP_N`), sorts columns, and filters by the search box; the detail card reads the rows from a `json_script` block. `?client=<name>` pre-fills the search (used by the "£X quoted" badge on the Clients page, whose total uses the same rule). **New Client Conversion** (inside Referral Analysis): `referral_conversion_stats()` takes clients with a referral source whose *first-ever* enquiry falls in the filtered period (the filter picks when the client was won) and follows each up to today: came back = 2+ enquiries (any status), won work = 1+ Awarded enquiry, converted = both. One summary row per source plus an "All sources" total, an outcome bar per source, and a collapsible per-client list; the totals table is in the PDF under `show_referral`. Clients with no referral recorded (pre-referral legacy clients) are left out. Chart data is passed as lists to Chart.js in the template. Sector colours come from `_palette` indexed by `SECTOR_CHOICES` order. `StatisticExplorerPDFView` re-uses that context and renders `statistic_explorer_pdf.html` (pure HTML/CSS with `@page` rules, no JS) to a PDF with WeasyPrint. If WeasyPrint or its Pango system libraries are unavailable (`ImportError`/`OSError`, e.g. on Windows) it returns the same page as printable HTML with a Print button.
 
 ## URLs
 
@@ -124,7 +128,8 @@ Used during the 1.1.0 client normalisation; safe to re-run, all support `--dry-r
 - `sales_tracker` 0012–0015 / `monthly_awards` 0004–0006: moved free-text client fields into `Client`/`Contact` (add FK → data migration `sales_tracker/0013` → drop old fields → add contact FK).
 - `clients/0005` renames a column with guarded raw SQL so it's a no-op where already applied — pattern to copy for any risky migration.
 - `clients/0006` (2026-11-23): records the Flood Consultancy choice; choices-only, no SQL.
+- `sales_tracker/0017` (2026-11-23): data-only — copies each client's referral to all its enquiries (earliest enquiry's value wins on conflict) and promotes `new` clients with >1 enquiry to `current`. Re-runnable; reverse is a no-op.
 
 ## Tests
 
-`python manage.py test` — one `tests.py` per app, shared helpers in `psl_app_project/test_utils.py`. Coverage: login protection and smoke-render of every page, missing-migration check, enquiry add/client matching, the full award/un-award/sync/cascade flows, award list flags, invoice PSL/mismatch/monthly totals, client CRUD/protection/APIs/contacts page, live-refresh endpoint, follow-up status migration, statistic explorer filters/colours/PDF (real and fallback paths), client analysis figures. Bugs not yet fixed should be pinned with `@unittest.expectedFailure`.
+`python manage.py test` — one `tests.py` per app, shared helpers in `psl_app_project/test_utils.py`. Coverage: login protection and smoke-render of every page, missing-migration check, enquiry add/client matching, the full award/un-award/sync/cascade flows, award list flags, invoice PSL/mismatch/monthly totals, client CRUD/protection/APIs/contacts page, live-refresh endpoint, follow-up status migration, statistic explorer filters/colours/PDF (real and fallback paths), client analysis figures, new-client conversion by referral source. Bugs not yet fixed should be pinned with `@unittest.expectedFailure`.

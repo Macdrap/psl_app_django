@@ -9,6 +9,7 @@ from datetime import datetime
 from .models import MonthlyAward
 from .forms import MonthlyAwardForm
 from invoiced_jobs.models import InvoicedJob
+from sales_tracker.client_sync import sync_moved_enquiry
 
 
 def get_or_create_client(company_name, contact_name, email, phone, sector=None, client_status=None):
@@ -254,12 +255,15 @@ def edit_monthly_award(request, pk):
             # Update linked sale if exists
             if updated_award.sale:
                 sale = updated_award.sale
+                old_sale_client_id, old_sale_referral = sale.client_id, sale.referral
                 sale.job_number = updated_award.job_number
                 sale.location = updated_award.location
                 sale.client = updated_award.client
                 sale.contact = updated_award.contact
                 sale.value = updated_award.value
                 sale.save()
+                # Moving the sale to another client: keep referral/status consistent
+                sync_moved_enquiry(sale, old_sale_client_id, old_sale_referral)
 
             messages.success(request, 'Monthly award updated successfully!')
 

@@ -200,3 +200,86 @@ class ClientAnalysisTests(LoggedInTestCase):
         self.assertContains(resp, 'Client 24')      # highest value
         self.assertNotContains(resp, 'Client 04')   # 21st by value, outside top 20
         self.assertNotContains(hidden, 'Client Analysis')
+
+
+class ReferralConversionTests(LoggedInTestCase):
+    """'New Client Conversion' in Referral Analysis: do referred new clients
+    come back for more enquiries and win work?"""
+
+    def enquiry(self, client, job, when, status='Pending', value='100', referral=None):
+        return self.make_enquiry(job_number=job, value=value, status=status, client=client,
+                                 contact=self.make_contact(client, name=f'Contact {job}'),
+                                 date=when, referral=referral)
+
+    def setUp(self):
+        super().setUp()
+        # Google: one converted (came back + award), one one-off.
+        g1 = self.make_client('Google Converted', client_status='new')
+        self.enquiry(g1, 'g1a', date(2026, 3, 1), 'Rejected', referral='google')
+        self.enquiry(g1, 'g1b', date(2026, 6, 1), 'Awarded', value='2000', referral='google')
+        g2 = self.make_client('Google One-off', client_status='new')
+        self.enquiry(g2, 'g2a', date(2026, 3, 5), referral='google')
+        # Recommendation: awarded on its only enquiry.
+        r1 = self.make_client('Recommended Once', client_status='new')
+        self.enquiry(r1, 'r1a', date(2026, 4, 2), 'Awarded', value='500', referral='recommendation')
+        # Other: came back twice, nothing awarded yet.
+        o1 = self.make_client('Other Returner', client_status='new')
+        self.enquiry(o1, 'o1a', date(2026, 3, 9), 'Rejected', referral='other')
+        self.enquiry(o1, 'o1b', date(2026, 5, 9), 'Pending', referral='other')
+        # Legacy client: no referral recorded -> not in the cohort.
+        legacy = self.make_client('Legacy Ltd')
+        self.enquiry(legacy, 'l1', date(2026, 3, 1), 'Awarded')
+        self.enquiry(legacy, 'l2', date(2026, 3, 2), 'Awarded')
+
+    def get(self, **params):
+        return self.client.get(reverse('statistic_explorer'), params)
+
+    def test_outcome_per_client_and_legacy_clients_excluded(self):
+        resp = self.get()
+        outcomes = {c['name']: c['outcome'] for c in resp.context['conversion_clients']}
+        self.assertEqual(outcomes, {
+            'Google Converted': 'converted',
+            'Google One-off': 'one_off',
+            'Recommended Once': 'awarded_once',
+            'Other Returner': 'returned',
+        })
+
+    def test_summary_per_source_and_total(self):
+        sources = self.get().context['conversion_sources']
+        self.assertEqual(list(sources), ['google', 'recommendation', 'other', 'total'])
+        g = sources['google']
+        self.assertEqual((g['clients'], g['returned'], g['awarded'], g['converted']), (2, 1, 1, 1))
+        self.assertEqual((g['returned_pct'], g['converted_pct']), (50.0, 50.0))
+        self.assertEqual(g['enquiries_per_client'], 1.5)
+        self.assertEqual((g['awarded_jobs'], g['awarded_value']), (1, Decimal('2000')))
+        t = sources['total']
+        self.assertEqual((t['clients'], t['returned'], t['awarded'], t['converted']), (4, 2, 2, 1))
+        self.assertEqual(t['converted_pct'], 25.0)
+        self.assertEqual([o['count'] for o in t['outcomes']], [1, 1, 1, 1])
+
+    def test_period_picks_first_enquiry_but_follow_up_runs_to_today(self):
+        # March: Google Converted's first enquiry is in March; its award in
+        # June still counts. Recommended Once (first enquiry April) is out.
+        resp = self.get(filter_type='month', year=2026, month=3)
+        names = {c['name']: c for c in resp.context['conversion_clients']}
+        self.assertEqual(set(names), {'Google Converted', 'Google One-off', 'Other Returner'})
+        self.assertEqual(names['Google Converted']['outcome'], 'converted')
+        self.assertEqual(names['Google Converted']['enquiry_count'], 2)
+
+    def test_client_whose_first_enquiry_was_earlier_is_not_new_in_a_later_period(self):
+        # June: Google Converted had an enquiry, but it was won in March.
+        resp = self.get(filter_type='month', year=2026, month=6)
+        self.assertEqual(resp.context['conversion_clients'], [])
+        self.assertEqual(resp.context['conversion_sources'], {})
+        self.assertContains(resp, 'No new clients with a referral source')
+
+    def test_page_and_pdf_render_the_section(self):
+        resp = self.get()
+        self.assertContains(resp, 'New Client Conversion')
+        self.assertContains(resp, 'Show the 4 clients')
+        self.assertContains(resp, 'outcome-pill outcome-converted')
+        with mock.patch.dict(sys.modules, {'weasyprint': None}):  # HTML fallback
+            pdf = self.client.get(reverse('statistic_explorer_pdf'))
+            hidden = self.client.get(reverse('statistic_explorer_pdf'), {'show_referral': 'false'})
+        self.assertContains(pdf, 'New Client Conversion by Referral Source')
+        self.assertNotContains(hidden, 'New Client Conversion')
