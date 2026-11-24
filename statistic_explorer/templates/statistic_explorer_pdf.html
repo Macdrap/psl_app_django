@@ -358,6 +358,49 @@
     </div>
     {% endif %}
 
+    {% if show_survey_type and survey_type_data.has_data %}
+    <!-- Survey type / department breakdown -->
+    <div class="section">
+        <div class="section-title">Survey Type Analysis</div>
+        <table class="breakdown-table" style="font-size:11px;">
+            <thead>
+                <tr>
+                    <th>Survey Type</th>
+                    <th>Enquiries</th>
+                    <th>Quotes</th>
+                    <th>Quoted</th>
+                    <th>Awarded</th>
+                    <th>Awarded Value</th>
+                    <th>Win Rate (Count / Value)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in survey_type_data.rows %}
+                <tr>
+                    <td><span class="color-indicator" style="background:{{ row.color }};"></span><strong>{{ row.label }}</strong></td>
+                    <td>{{ row.enquiries }}</td>
+                    <td>{{ row.quotes }}</td>
+                    <td>£{{ row.quoted_value|floatformat:"2g" }}</td>
+                    <td>{{ row.awarded_count }}</td>
+                    <td>£{{ row.awarded_value|floatformat:"2g" }}</td>
+                    <td class="status-awarded">{{ row.win_rate }}% / {{ row.win_rate_value }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5"><strong>Awarded value total</strong></td>
+                    <td><strong>£{{ survey_type_data.total_awarded|floatformat:"2g" }}</strong></td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+        <p style="font-size:10px; color:#6b7280; margin-top:6px;">
+            {% if survey_type_data.untagged %}{{ survey_type_data.untagged }} enquir{{ survey_type_data.untagged|pluralize:"y,ies" }} without a survey type not counted.{% endif %}
+        </p>
+    </div>
+    {% endif %}
+
     {% if show_client_analysis and client_rows %}
     <!-- Client analysis: top clients by total quoted -->
     <div class="section">

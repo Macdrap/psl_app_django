@@ -212,6 +212,12 @@
         gap: 0.5rem;
     }
 
+    .invoice-note {
+        color: #6b7280;
+        font-size: 0.875rem;
+        margin: 1rem 0 0;
+    }
+
     .success-message {
         background: #d1fae5;
         border: 1px solid #86efac;
@@ -270,12 +276,22 @@
             </div>
         </div>
 
+        <!-- Survey Type(s) - Always shown (optional, one or more) -->
+        <div class="form-grid full-width">
+            {% include 'survey_type_picker.html' with field=form.survey_types %}
+        </div>
+
         <!-- Value and Status - Only shown in Edit form -->
         {% if not is_add_form %}
+        <!-- Value per ticked survey type; the total below is their sum. This is
+             the one place value is allocated: the award and its invoice use it. -->
+        {% include 'survey_type_values.html' with form=form value_field=form.value %}
+
         <div class="form-grid">
             <div class="form-group">
-                <label for="{{ form.value.id_for_label }}" class="required">Value (£)</label>
+                <label for="{{ form.value.id_for_label }}" class="required">{{ form.value.label }}</label>
                 {{ form.value }}
+                <div class="value-hint" id="valueHint"></div>
                 {% if form.value.errors %}
                     <div class="error-message">{{ form.value.errors }}</div>
                 {% endif %}
@@ -301,63 +317,16 @@
                 <input type="date" id="invoiceDate" name="invoice_date" class="form-input" required>
             </div>
 
-            <div class="form-sub-header" style="margin-top: 1.5rem;">
-                <h2>Department Value Allocation</h2>
-            </div>
-
-            <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem; text-align: center;">
-                Total Award Value: <strong style="color: #1f2937;">£<span id="totalAwardValue">0.00</span></strong>
+            <p class="invoice-note">
+                {% if existing_award %}
+                Awarded: <strong>£{{ existing_award.value|floatformat:"2g" }}</strong>{% with a=existing_award.survey_type_value_breakdown %}{% if a %} ({{ a }}){% endif %}{% endwith %}.
+                What was awarded can differ from the quote above &mdash;
+                <a href="{% url 'edit_monthly_award' existing_award.pk %}" style="color: rgb(88,70,164); font-weight: 600;">edit it on Monthly Awards</a>.
+                {% else %}
+                The award and its first invoice will start from the <strong>Value by Survey Type</strong> above.
+                If less (or more) was awarded, change it on Monthly Awards afterwards.
+                {% endif %}
             </p>
-
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="utilityValue">Utility (£)</label>
-                    <input type="number" id="utilityValue" name="invoice_utility_value" class="form-input" step="0.01" min="0" value="0">
-                </div>
-
-                <div class="form-group">
-                    <label for="cadValue">CAD (£)</label>
-                    <input type="number" id="cadValue" name="invoice_cad_value" class="form-input" step="0.01" min="0" value="0">
-                </div>
-            </div>
-
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="topoValue">Topo (£)</label>
-                    <input type="number" id="topoValue" name="invoice_topo_value" class="form-input" step="0.01" min="0" value="0">
-                </div>
-
-                <div class="form-group">
-                    <label for="contractorValue">Contractor (£)</label>
-                    <input type="number" id="contractorValue" name="invoice_contractor_value" class="form-input" step="0.01" min="0" value="0">
-                </div>
-            </div>
-
-            <div class="value-breakdown">
-                <div class="value-breakdown-header">Value Summary</div>
-                <div class="value-row">
-                    <span class="value-label">PSL Value (Utility + CAD + Topo):</span>
-                    <span class="value-amount">£<span id="pslValueDisplay">0.00</span></span>
-                </div>
-                <div class="value-row">
-                    <span class="value-label">Total Allocated:</span>
-                    <span class="value-amount">£<span id="totalAllocatedDisplay">0.00</span></span>
-                </div>
-                <div class="value-row">
-                    <span class="value-label">Remaining:</span>
-                    <span class="value-amount" id="remainingDisplay">£0.00</span>
-                </div>
-            </div>
-
-            <div id="allocationWarning" class="warning-message" style="display: none;">
-                <span>⚠️</span>
-                <span>Warning: Total allocated does not match award value</span>
-            </div>
-
-            <div id="allocationSuccess" class="success-message" style="display: none;">
-                <span>✓</span>
-                <span>Values allocated correctly</span>
-            </div>
         </div>
         {% endif %}
 
@@ -687,88 +656,33 @@
     // Invoice section elements
     const invoiceSection = document.getElementById('invoiceSection');
     const statusSelect = document.getElementById('{{ form.status.id_for_label }}');
-    const valueInput = document.getElementById('{{ form.value.id_for_label }}');
 
     // Invoice form elements
     const invoiceDateInput = document.getElementById('invoiceDate');
-    const utilityValueInput = document.getElementById('utilityValue');
-    const cadValueInput = document.getElementById('cadValue');
-    const topoValueInput = document.getElementById('topoValue');
-    const contractorValueInput = document.getElementById('contractorValue');
 
-    // Display elements
-    const totalAwardValueDisplay = document.getElementById('totalAwardValue');
-    const pslValueDisplay = document.getElementById('pslValueDisplay');
-    const totalAllocatedDisplay = document.getElementById('totalAllocatedDisplay');
-    const remainingDisplay = document.getElementById('remainingDisplay');
-    const allocationWarning = document.getElementById('allocationWarning');
-    const allocationSuccess = document.getElementById('allocationSuccess');
-
-    // Load existing invoice data if available
-    {% if existing_invoice %}
-    invoiceDateInput.value = '{{ existing_invoice.date|date:"Y-m-d" }}';
-    utilityValueInput.value = '{{ existing_invoice.utility_value }}';
-    cadValueInput.value = '{{ existing_invoice.cad_value }}';
-    topoValueInput.value = '{{ existing_invoice.topo_value }}';
-    contractorValueInput.value = '{{ existing_invoice.contractor_value }}';
-    {% else %}
+    {% if not existing_invoice %}
     // Set default invoice date to today if no existing invoice
-    const today = new Date().toISOString().split('T')[0];
-    invoiceDateInput.value = today;
+    invoiceDateInput.value = new Date().toISOString().split('T')[0];
+    {% else %}
+    invoiceDateInput.value = '{{ existing_invoice.date|date:"Y-m-d" }}';
     {% endif %}
-
-    // Update value displays
-    function updateValueDisplays() {
-        const awardValue = parseFloat(valueInput.value) || 0;
-        const utility = parseFloat(utilityValueInput.value) || 0;
-        const cad = parseFloat(cadValueInput.value) || 0;
-        const topo = parseFloat(topoValueInput.value) || 0;
-        const contractor = parseFloat(contractorValueInput.value) || 0;
-
-        const pslValue = utility + cad + topo;
-        const totalAllocated = pslValue + contractor;
-        const remaining = awardValue - totalAllocated;
-
-        totalAwardValueDisplay.textContent = awardValue.toFixed(2);
-        pslValueDisplay.textContent = pslValue.toFixed(2);
-        totalAllocatedDisplay.textContent = totalAllocated.toFixed(2);
-        remainingDisplay.textContent = remaining.toFixed(2);
-
-        // Show warning/success
-        if (Math.abs(remaining) > 0.01) {
-            allocationWarning.style.display = 'flex';
-            allocationSuccess.style.display = 'none';
-            remainingDisplay.style.color = '#dc2626';
-        } else {
-            allocationWarning.style.display = 'none';
-            allocationSuccess.style.display = 'flex';
-            remainingDisplay.style.color = '#059669';
-        }
-    }
 
     // Toggle invoice section based on status
     function toggleInvoiceSection() {
         if (statusSelect.value === 'Awarded') {
             invoiceSection.classList.add('visible');
             invoiceDateInput.required = true;
-            updateValueDisplays();
         } else {
             invoiceSection.classList.remove('visible');
             invoiceDateInput.required = false;
         }
     }
 
-    // Listen to value changes
-    [utilityValueInput, cadValueInput, topoValueInput, contractorValueInput, valueInput].forEach(input => {
-        input.addEventListener('input', updateValueDisplays);
-    });
-
     // Listen to status changes
     statusSelect.addEventListener('change', toggleInvoiceSection);
 
     // Initialize on page load
     toggleInvoiceSection();
-    updateValueDisplays();
 
     // Form submission - add flag for invoice creation
     const mainForm = document.getElementById('mainForm');

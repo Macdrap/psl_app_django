@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import InvoicedJob
+from sales_tracker.survey_types import DEPARTMENT_VALUE_FIELDS
 
 
 @admin.register(InvoicedJob)
@@ -52,8 +53,7 @@ class InvoicedJobAdmin(admin.ModelAdmin):
             'fields': ('date', 'status', 'description')
         }),
         ('Value Breakdown', {
-            'fields': ('utility_value', 'cad_value',
-                       'topo_value', 'contractor_value', 'psl_value')
+            'fields': (*DEPARTMENT_VALUE_FIELDS, 'psl_value')
         }),
         ('Metadata', {
             'fields': ('created_by', 'created_at', 'updated_at'),

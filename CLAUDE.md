@@ -30,18 +30,19 @@ Local DB is Postgres on `localhost:5432` (settings in `.env`, see `.env.example`
 2. **Add/extend tests** in the app's `tests.py` for any behaviour you add or change. Shared factories are in `psl_app_project/test_utils.py` (`LoggedInTestCase`, `make_client`, `make_enquiry`, `make_award`, `make_invoice`, `messages_of`).
 3. **Migrations:** any model change (fields, defaults, **choices**) needs `makemigrations` committed alongside it. `dashboard/tests.py::MigrationTests` fails if one is missing. Never edit or delete an already-applied migration — production has run them all. Data-changing migrations must be safe on both a fresh DB and production (see `clients/0005` for the pattern).
 4. **Keep the sync logic intact** (details in ARCHITECTURE.md):
-   - Sales enquiry status → `Awarded` creates a `MonthlyAward` **and** an `InvoicedJob` (from the award modal's `invoice_*` POST fields).
+   - Sales enquiry status → `Awarded` creates a `MonthlyAward` **and** an `InvoicedJob`. Both **start from** the enquiry's **value by survey type** (`survey_type_values`); the award modal only asks for the projected invoice date.
    - Status away from `Awarded` deletes the linked award(s) (invoices cascade).
-   - Editing an awarded enquiry updates its award(s) and the first invoice; editing an award updates its linked sale.
+   - After that, **enquiry = quote, award = what was awarded**: they can differ. Editing either one syncs only job number / location / client / contact to the other. The award's value, survey types and split are edited on Monthly Awards (a changed split goes onto its invoice while it has exactly one).
    - Deleting an award reverts the sale to `Pending`.
 5. **Clients are matched by exact (trimmed) company name**; contacts by name within a client. Use `get_or_create_client()` — it is **duplicated** in `sales_tracker/views.py` and `monthly_awards/views.py`; change both or consolidate.
 6. **Preserve list state on redirects.** Add/edit/delete views carry `page`, `sort_by`, `search`, `per_page`, `scroll` (and `year`/`month` on Monthly Awards / Invoiced Jobs) through the query string and back. Keep this when touching those views/templates.
 7. **Use `{% url 'name' %}` / `reverse()`**, never hard-coded paths. The project URL prefixes have no trailing slash (e.g. real path is `/sales-trackeradd/`); don't "fix" that without redirects, users have bookmarks.
 8. **Adding a sector** (`clients.models.SECTOR_CHOICES`): also add a colour to `_palette` in `statistic_explorer/views.py` and create a migration. Tests check both.
-9. All views must stay `@login_required` / `LoginRequiredMixin` (tested).
-10. Don't commit `.env`, database dumps (`*.sql`, ignored) or anything under `logs/`.
-11. **Sales Tracker rows live in `sales_tracker/templates/partials/table_body.html`** — shared by the page and the live-refresh endpoint. Add/change columns there (and the `<thead>` in `sales_tracker.html`).
-12. **Changing `docker/Dockerfile` or system packages:** `scripts/deploy.sh` stops the live site *before* building, so a broken build means downtime. Build the image locally first (`docker build -f docker/Dockerfile .`).
+9. **Adding a survey type / department**: one row in `sales_tracker/survey_types.py::SURVEY_TYPES` + the matching `<code>_value` field on `InvoicedJob` + `makemigrations`. Never rename a stored code. Department value fields are looped everywhere — don't hard-code a department list.
+10. All views must stay `@login_required` / `LoginRequiredMixin` (tested).
+11. Don't commit `.env`, database dumps (`*.sql`, ignored) or anything under `logs/`.
+12. **Sales Tracker rows live in `sales_tracker/templates/partials/table_body.html`** — shared by the page and the live-refresh endpoint. Add/change columns there (and the `<thead>` in `sales_tracker.html`).
+13. **Changing `docker/Dockerfile` or system packages:** `scripts/deploy.sh` stops the live site *before* building, so a broken build means downtime. Build the image locally first (`docker build -f docker/Dockerfile .`).
 
 ## Git & deploy
 

@@ -2,9 +2,10 @@ from django import forms
 from .models import MonthlyAward
 from sales_tracker.models import SalesEnquiry
 from clients.models import SECTOR_CHOICES, CLIENT_STATUS_CHOICES
+from sales_tracker.forms import SurveyTypesField, SurveyTypeValuesMixin
 
 
-class MonthlyAwardForm(forms.ModelForm):
+class MonthlyAwardForm(SurveyTypeValuesMixin, forms.ModelForm):
     """Form for creating/editing monthly awards"""
 
     company_name = forms.CharField(
@@ -51,9 +52,12 @@ class MonthlyAwardForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-input'}),
         label='Client Status',
     )
+    survey_types = SurveyTypesField()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Value is allocated by survey type; the total is their sum
+        self._setup_survey_type_values('Total Award Value (£)')
         # Pre-populate client fields from the FKs on the award itself
         if self.instance and self.instance.pk:
             if self.instance.client_id:
@@ -63,9 +67,15 @@ class MonthlyAwardForm(forms.ModelForm):
                 self.fields['email'].initial = self.instance.contact.email
                 self.fields['phone'].initial = self.instance.contact.phone
 
+    def clean(self):
+        cleaned = super().clean()
+        # New awards must be split by survey type; old unsplit awards can
+        # still be edited with a typed-in total.
+        return self._clean_survey_type_values(cleaned, allow_unsplit_value=bool(self.instance.pk))
+
     class Meta:
         model = MonthlyAward
-        fields = ['job_number', 'date', 'location', 'value']
+        fields = ['job_number', 'date', 'location', 'value', 'survey_types']
         widgets = {
             'job_number': forms.TextInput(attrs={
                 'class': 'form-input',

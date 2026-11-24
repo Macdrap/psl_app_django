@@ -182,16 +182,9 @@
         border-left-color: rgb(42,164,176);
     }
 
-    .summary-card.utility {
-        border-left-color: rgb(170, 70, 70);
-    }
-
-    .summary-card.topo {
-        border-left-color: rgb(70, 110, 160);
-    }
-
-    .summary-card.cad {
-        border-left-color: rgb(200, 180, 90);
+    /* Department cards: border colour comes from the survey type palette */
+    .department-cards {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     }
 
     .summary-card h3 {
@@ -663,24 +656,16 @@
         <div class="subtitle">{{ jobs_count }} invoice{{ jobs_count|pluralize }}{% if search_query %} matching "{{ search_query }}"{% endif %}</div>
     </div>
 </div>
-<div class="summary-cards">
-    <div class="summary-card utility">
-        <h3>utility</h3>
-        <div class="value">£{{ total_utils|floatformat:2 }}</div>
-        <div class="subtitle">{{ utils_jobs_count }} invoice{{ utils_jobs_count|pluralize }}</div>
+<div class="summary-cards department-cards">
+    {% for dept in department_totals %}
+    {% if dept.count or dept.code == 'utility' or dept.code == 'mbs' or dept.code == 'topo' %}
+    <div class="summary-card department" style="border-left-color: {{ dept.color }};">
+        <h3>{{ dept.label }}</h3>
+        <div class="value">£{{ dept.total|floatformat:2 }}</div>
+        <div class="subtitle">{{ dept.count }} invoice{{ dept.count|pluralize }}</div>
     </div>
-
-    <div class="summary-card topo">
-        <h3>Topo</h3>
-        <div class="value">£{{ total_topo|floatformat:2 }}</div>
-        <div class="subtitle">{{ topo_jobs_count }} invoice{{ topo_jobs_count|pluralize }}</div>
-    </div>
-
-    <div class="summary-card cad">
-        <h3>Cad</h3>
-        <div class="value">£{{ total_cad|floatformat:2 }}</div>
-        <div class="subtitle">{{ cad_jobs_count }} invoice{{ cad_jobs_count|pluralize }}{% if search_query %} matching "{{ search_query }}"{% endif %}</div>
-    </div>
+    {% endif %}
+    {% endfor %}
 </div>
 
 <div class="table-container" style="margin-bottom: 80px;">
@@ -695,6 +680,7 @@
                 <th>Email</th>
                 <th>Description</th>
                 <th>Location</th>
+                <th>Survey Type</th>
                 <th>Invoice Date</th>
                 <th>Award Value</th>
                 <th>Invoice Total</th>
@@ -730,10 +716,11 @@
                     {% endif %}
                 </td>
                 <td>{{ job.award.location|truncatewords:8 }}</td>
+                <td>{% include 'survey_type_badges.html' with items=job.award.survey_type_badges %}</td>
                 <td>{{ job.date|date:"d M Y" }}</td>
-                <td><strong>£{{ job.award_total|floatformat:2 }}</strong></td>
-                <td>£{{ job.this_invoice_total|floatformat:2 }}</td>
-                <td>£{{ job.psl_value|floatformat:2 }}</td>
+                <td class="cell-award-value"><strong>£{{ job.award_total|floatformat:2 }}</strong></td>
+                <td class="cell-invoice-total"{% if job.department_breakdown %} title="{{ job.department_breakdown }}"{% endif %}>£{{ job.this_invoice_total|floatformat:2 }}</td>
+                <td class="cell-psl-value">£{{ job.psl_value|floatformat:2 }}</td>
                 <td><strong>{{ job.status }}</strong></td>
                 <td class = "follow-up-status-{{ job.follow_up_status|lower }}">
                     <strong>
@@ -847,9 +834,9 @@
 
     let lastSelectedIndex = null;
 
-    // Get Award Value from row (9th column)
+    // Get Award Value from row
     function getAwardValue(row) {
-        const valueCell = row.querySelector('td:nth-child(9)');
+        const valueCell = row.querySelector('td.cell-award-value');
         if (valueCell) {
             const text = valueCell.textContent.replace(/[£,]/g, '').trim();
             return parseFloat(text) || 0;
@@ -857,9 +844,9 @@
         return 0;
     }
 
-    // Get Invoice Total from row (10th column)
+    // Get Invoice Total from row
     function getInvoiceTotal(row) {
-        const valueCell = row.querySelector('td:nth-child(10)');
+        const valueCell = row.querySelector('td.cell-invoice-total');
         if (valueCell) {
             const text = valueCell.textContent.replace(/[£,]/g, '').trim();
             return parseFloat(text) || 0;
@@ -867,9 +854,9 @@
         return 0;
     }
 
-    // Get PSL Value from row (11th column)
+    // Get PSL Value from row
     function getPSLValue(row) {
-        const valueCell = row.querySelector('td:nth-child(11)');
+        const valueCell = row.querySelector('td.cell-psl-value');
         if (valueCell) {
             const text = valueCell.textContent.replace(/[£,]/g, '').trim();
             return parseFloat(text) || 0;

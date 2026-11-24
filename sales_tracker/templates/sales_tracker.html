@@ -569,6 +569,7 @@ td small {
                 <th>Date</th>
                 <th>Company</th>
                 <th>Location</th>
+                <th>Survey Type</th>
                 <th>Value</th>
                 <th>Status</th>
                 <th>Referral</th>
@@ -712,7 +713,7 @@ restoreScrollFromURL();
     }
 
     function getRowValue(row) {
-        const valueCell = row.querySelector('td:nth-child(5)');
+        const valueCell = row.querySelector('td.cell-value');
         if (valueCell) {
             const text = valueCell.textContent.replace(/[£,]/g, '').trim();
             return parseFloat(text) || 0;

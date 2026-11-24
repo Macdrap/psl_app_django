@@ -644,6 +644,10 @@
             <label for="toggle-sector">Sector Analysis</label>
         </div>
         <div class="toggle-item">
+            <input type="checkbox" id="toggle-survey-type" checked>
+            <label for="toggle-survey-type">Survey Type Analysis</label>
+        </div>
+        <div class="toggle-item">
             <input type="checkbox" id="toggle-client-analysis" checked>
             <label for="toggle-client-analysis">Client Analysis</label>
         </div>
@@ -997,6 +1001,110 @@
     {% endif %}
 </div>
 
+<!-- ── Survey Type / Department Analysis ─────────────────────────────── -->
+<div class="chart-section" id="survey-type-section">
+    <div class="chart-header">
+        <h2>Survey Type Analysis</h2>
+        <span class="filter-badge">{{ filter_description }}</span>
+    </div>
+
+    {% with st=survey_type_data %}
+    {% if st.has_data %}
+    <div style="display:flex; gap:3rem; flex-wrap:wrap; justify-content:center; align-items:flex-start;">
+
+        <!-- Left: awarded value split by survey type -->
+        <div style="flex:1; min-width:280px; display:flex; flex-direction:column; align-items:center;">
+            <h3 style="color:#1f2937; font-size:1rem; margin-bottom:0.25rem; text-align:center;">Awarded Value by Survey Type</h3>
+            <p style="color:#6b7280; font-size:0.8rem; margin:0 0 1rem; text-align:center;">Jobs awarded in this period &middot; £{{ st.total_awarded|floatformat:"0g" }} total</p>
+            {% if st.total_awarded %}
+            <div class="chart-wrapper">
+                <canvas id="surveyTypeShareChart"></canvas>
+            </div>
+            <div class="chart-legend" style="margin-top:1.5rem; width:100%;">
+                {% for row in st.rows %}{% if row.awarded_value %}
+                <div class="legend-item">
+                    <div class="legend-color" style="background:{{ row.color }};"></div>
+                    <div class="legend-info">
+                        <div class="legend-label">{{ row.label }}</div>
+                        <div class="legend-value">£{{ row.awarded_value|floatformat:"0g" }} awarded</div>
+                    </div>
+                    <div class="legend-count" style="font-size:1rem; color:#1f2937;">{{ row.awarded_pct }}%</div>
+                </div>
+                {% endif %}{% endfor %}
+            </div>
+            {% else %}
+            <div class="no-data" style="padding:1.5rem;">
+                <p>No awarded jobs with a value in this period.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right: quoted vs awarded per survey type -->
+        <div style="flex:1.4; min-width:300px; display:flex; flex-direction:column; align-items:center; width:100%;">
+            <h3 style="color:#1f2937; font-size:1rem; margin-bottom:0.25rem; text-align:center;">Quoted vs Awarded by Survey Type</h3>
+            <p style="color:#6b7280; font-size:0.8rem; margin:0 0 1rem; text-align:center;">Each job's value for that survey type</p>
+            <div style="position:relative; width:100%; height:calc({{ st.rows|length }} * 44px + 60px); min-height:240px;">
+                <canvas id="surveyTypeValueChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="client-table-wrap" style="margin-top:2rem;">
+        <table class="client-table conversion-table" id="surveyTypeTable">
+            <thead>
+                <tr>
+                    <th>Survey Type</th>
+                    <th class="num">Enquiries</th>
+                    <th class="num">Quotes</th>
+                    <th class="num">Quoted</th>
+                    <th class="num">Awarded</th>
+                    <th class="num">Awarded Value</th>
+                    <th class="num">Win Rate<br><span class="th-sub">count / value</span></th>
+                    <th class="num">Pending</th>
+                    <th class="num">Rejected</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in st.rows %}
+                <tr data-survey-type="{{ row.code }}">
+                    <td class="client-name"><span style="display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:middle; margin-right:6px; background:{{ row.color }};"></span>{{ row.label }}</td>
+                    <td class="num">{{ row.enquiries }}</td>
+                    <td class="num">{{ row.quotes }}</td>
+                    <td class="num">£{{ row.quoted_value|floatformat:"0g" }}</td>
+                    <td class="num">{{ row.awarded_count }}</td>
+                    <td class="num strong">£{{ row.awarded_value|floatformat:"0g" }}</td>
+                    <td class="num win">{{ row.win_rate }}% / {{ row.win_rate_value }}%</td>
+                    <td class="num">{{ row.pending_count }} · £{{ row.pending_value|floatformat:"0g" }}</td>
+                    <td class="num">{{ row.rejected_count }} · £{{ row.rejected_value|floatformat:"0g" }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td>Awarded value total</td>
+                    <td colspan="4"></td>
+                    <td class="num">£{{ st.total_awarded|floatformat:"0g" }}</td>
+                    <td colspan="3"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p style="color:#6b7280; font-size:0.8rem; margin-top:0.75rem; line-height:1.5;">
+        Quoted = the enquiries' quotes (Pending, Awarded or Rejected over £0). Awarded Value = what was awarded, from Monthly Awards. Win rate = awarded ÷ quotes.
+        {% if st.untagged %}<br>{{ st.untagged }} enquir{{ st.untagged|pluralize:"y,ies" }} in this period {{ st.untagged|pluralize:"has,have" }} no survey type and {{ st.untagged|pluralize:"is,are" }} not counted above.{% endif %}
+    </p>
+    {{ st.labels|json_script:"st-labels" }}
+    {{ st.colors|json_script:"st-colors" }}
+    {{ st.quoted_values|json_script:"st-quoted" }}
+    {{ st.awarded_values|json_script:"st-awarded" }}
+    {% else %}
+    <div class="no-data">
+        <div class="no-data-icon">📐</div>
+        <h3>No survey type data available</h3>
+        <p>No enquiries with a survey type for the selected period{% if st.untagged %} ({{ st.untagged }} without one){% endif %}.</p>
+    </div>
+    {% endif %}
+    {% endwith %}
+</div>
+
 <!-- ── Client Analysis (per-client quotes, with search) ───────────────── -->
 <div class="chart-section" id="client-analysis-section">
     <div class="chart-header">
@@ -1324,6 +1432,7 @@
     const toggleClientStatus  = document.getElementById('toggle-client-status');
     const toggleReferral      = document.getElementById('toggle-referral');
     const toggleClientAnalysis = document.getElementById('toggle-client-analysis');
+    const toggleSurveyType    = document.getElementById('toggle-survey-type');
 
     function bindToggle(checkbox, sectionId) {
         const section = document.getElementById(sectionId);
@@ -1337,6 +1446,7 @@
     bindToggle(toggleClientStatus, 'client-status-section');
     bindToggle(toggleReferral,     'referral-section');
     bindToggle(toggleClientAnalysis, 'client-analysis-section');
+    bindToggle(toggleSurveyType,   'survey-type-section');
 
     // PDF Export with selected sections
     document.getElementById('exportPdfBtn').addEventListener('click', function() {
@@ -1347,6 +1457,7 @@
         urlParams.set('show_client_status', toggleClientStatus.checked);
         urlParams.set('show_referral',      toggleReferral.checked);
         urlParams.set('show_client_analysis', toggleClientAnalysis.checked);
+        urlParams.set('show_survey_type',   toggleSurveyType.checked);
 
         const exportUrl = '{% url "statistic_explorer_pdf" %}?' + urlParams.toString();
         window.open(exportUrl, '_blank');
@@ -1636,6 +1747,51 @@
         }
     });
     {% endif %}
+
+    // ── Survey type charts ────────────────────────────────────────────────
+    (function () {
+        if (!document.getElementById('st-labels')) return;
+        const read = id => JSON.parse(document.getElementById(id).textContent);
+        const labels = read('st-labels'), colors = read('st-colors');
+        const gbp = v => '£' + Number(v).toLocaleString('en-GB', {maximumFractionDigits: 0});
+
+        const shareCanvas = document.getElementById('surveyTypeShareChart');
+        if (shareCanvas) {
+            new Chart(shareCanvas.getContext('2d'), {
+                type: 'doughnut',
+                data: { labels, datasets: [{ data: read('st-awarded'), backgroundColor: colors, borderWidth: 0, hoverOffset: 10 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: true, cutout: '60%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: ctx => {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            return `${ctx.label}: ${gbp(ctx.raw)} (${(ctx.raw / total * 100).toFixed(1)}%)`;
+                        } } }
+                    }
+                }
+            });
+        }
+
+        new Chart(document.getElementById('surveyTypeValueChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'Quoted', data: read('st-quoted'), backgroundColor: colors.map(c => c + '55'), borderColor: colors, borderWidth: 1 },
+                    { label: 'Awarded', data: read('st-awarded'), backgroundColor: colors },
+                ]
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                scales: { x: { beginAtZero: true, ticks: { callback: v => gbp(v) } } },
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${gbp(ctx.raw)}` } }
+                }
+            }
+        });
+    })();
 
     {% if client_status_has_data %}
     const csLabels       = {{ cs_labels|safe }};

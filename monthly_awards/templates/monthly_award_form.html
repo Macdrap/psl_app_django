@@ -171,15 +171,29 @@
             </div>
         </div>
 
+        <!-- Survey Type(s) and value by survey type - kept in step with the linked sales enquiry -->
+        <div class="form-grid full-width">
+            {% include 'survey_type_picker.html' with field=award_form.survey_types %}
+        </div>
+
+        {% include 'survey_type_values.html' with form=award_form value_field=award_form.value %}
+
         <div class="form-grid full-width">
             <div class="form-group">
-                <label for="{{ award_form.value.id_for_label }}" class="required">Total Award Value (£)</label>
+                <label for="{{ award_form.value.id_for_label }}" class="required">{{ award_form.value.label }}</label>
                 {{ award_form.value }}
+                <div class="value-hint" id="valueHint"></div>
                 {% if award_form.value.errors %}
                     <div class="error-message">{{ award_form.value.errors }}</div>
                 {% endif %}
             </div>
         </div>
+{% if award and award.sale %}
+        <p class="quote-note" style="color:#6b7280; font-size:0.85rem; margin:-0.75rem 0 1.5rem;">
+            Quoted on the enquiry: <strong>£{{ award.sale.value|floatformat:"2g" }}</strong>{% with q=award.sale.survey_type_value_breakdown %}{% if q %} ({{ q }}){% endif %}{% endwith %}.
+            The values here are what was awarded and can differ from the quote; job number, location and client stay in sync with the enquiry.
+        </p>
+{% endif %}
 
         <div class="form-grid">
             <div class="form-group">

@@ -29,6 +29,9 @@ def edit_payload(enquiry, **overrides):
         'contact_name': enquiry.contact.name,
         'email': '',
         'phone': '',
+        # what the browser posts back for the current survey types / split
+        'survey_types': list(enquiry.survey_types),
+        **{f'value_{code}': str(v) for code, v in enquiry.get_survey_type_values().items()},
     }
     data.update(overrides)
     return data
@@ -131,19 +134,18 @@ class AwardSyncTests(LoggedInTestCase):
         super().setUp()
         self.enquiry = self.make_enquiry(job_number='7000', value='1500')
 
-    def award(self, **invoice_fields):
-        data = edit_payload(self.enquiry, status='Awarded', value='1500')
-        data.update({
-            'invoice_date': '2026-03-15', 'invoice_utility_value': '500',
-            'invoice_cad_value': '200', 'invoice_topo_value': '300',
-            'invoice_contractor_value': '500',
-        })
-        data.update(invoice_fields)
+    SPLIT = {'survey_types': ['utility', 'mbs', 'topo', 'contractor'], 'value_utility': '500',
+             'value_mbs': '200', 'value_topo': '300', 'value_contractor': '500'}  # = £1,500
+
+    def award(self, **fields):
+        data = edit_payload(self.enquiry, status='Awarded', invoice_date='2026-03-15', **self.SPLIT)
+        data.update(fields)
         resp = self.client.post(reverse('edit_sales_enquiry', args=[self.enquiry.pk]), data)
         self.assertEqual(resp.status_code, 302, 'edit form rejected the award POST')
+        self.enquiry.refresh_from_db()
         return resp
 
-    def test_awarding_creates_award_and_invoice(self):
+    def test_awarding_creates_award_and_invoice_from_the_value_by_survey_type(self):
         resp = self.award()
         self.assertEqual(resp.status_code, 302)
         award = MonthlyAward.objects.get(sale=self.enquiry)
@@ -151,33 +153,78 @@ class AwardSyncTests(LoggedInTestCase):
         self.assertEqual(award.value, Decimal('1500'))
         self.assertEqual(award.client, self.enquiry.client)
         self.assertEqual(award.date, date.today())
+        self.assertEqual(award.survey_type_values, self.enquiry.survey_type_values)
         invoice = InvoicedJob.objects.get(award=award)
         self.assertEqual(invoice.date, date(2026, 3, 15))
         self.assertEqual(invoice.status, 'Pending')
-        self.assertEqual(invoice.contractor_value, Decimal('500'))
-        self.assertEqual(invoice.psl_value, Decimal('1000'))  # utility + cad + topo
+        self.assertEqual((invoice.utility_value, invoice.mbs_value, invoice.topo_value, invoice.contractor_value),
+                         (Decimal('500'), Decimal('200'), Decimal('300'), Decimal('500')))
+        self.assertEqual(invoice.psl_value, Decimal('1000'))  # everything except contractor
         self.assertEqual(invoice.follow_up_status, 'n_a')  # was the invalid "N/A" before
         self.assertFalse(award.has_value_mismatch())
 
-    def test_awarding_with_blank_invoice_values_defaults_to_today_and_zero(self):
-        self.award(invoice_date='', invoice_utility_value='0', invoice_cad_value='0',
-                   invoice_topo_value='0', invoice_contractor_value='0')
+    def test_old_department_fields_in_the_post_are_ignored(self):
+        self.award(invoice_utility_value='9999')
+        invoice = InvoicedJob.objects.get(award__sale=self.enquiry)
+        self.assertEqual(invoice.utility_value, Decimal('500'))
+
+    def test_awarding_needs_a_survey_type(self):
+        data = edit_payload(self.enquiry, status='Awarded', survey_types=[], value='1500')
+        resp = self.client.post(reverse('edit_sales_enquiry', args=[self.enquiry.pk]), data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('survey_types', resp.context['form'].errors)
+        self.assertFalse(MonthlyAward.objects.exists())
+
+    def test_awarding_with_blank_invoice_date_defaults_to_today(self):
+        self.award(invoice_date='')
         invoice = InvoicedJob.objects.get(award__sale=self.enquiry)
         self.assertEqual(invoice.date, date.today())
-        self.assertEqual(invoice.get_total_invoice_value(), Decimal('0'))
 
-    def test_editing_awarded_enquiry_syncs_award_and_first_invoice(self):
+    def test_editing_awarded_enquiry_syncs_job_details_but_not_values(self):
         self.award()
-        self.enquiry.refresh_from_db()
-        data = edit_payload(self.enquiry, job_number='7000.1', value='2000', location='Hull')
-        data.update({'invoice_utility_value': '900'})
+        data = edit_payload(self.enquiry, job_number='7000.1', location='Hull', value_utility='900')
         self.client.post(reverse('edit_sales_enquiry', args=[self.enquiry.pk]), data)
+        self.enquiry.refresh_from_db()
+        self.assertEqual(self.enquiry.value, Decimal('1900'))  # the quote changed
         award = MonthlyAward.objects.get(sale=self.enquiry)
-        self.assertEqual((award.job_number, award.value, award.location),
-                         ('7000.1', Decimal('2000'), 'Hull'))
+        self.assertEqual((award.job_number, award.location), ('7000.1', 'Hull'))
+        self.assertEqual(award.value, Decimal('1500'))  # what was awarded is unchanged
+        self.assertEqual(award.get_survey_type_values()['utility'], Decimal('500'))
         invoice = award.invoiced_jobs.get()
-        self.assertEqual(invoice.utility_value, Decimal('900'))
-        self.assertEqual(invoice.cad_value, Decimal('200'))  # untouched fields keep their value
+        self.assertEqual(invoice.utility_value, Decimal('500'))
+        self.assertFalse(award.has_value_mismatch())
+
+    def test_edit_page_shows_what_was_awarded(self):
+        self.award()
+        award = MonthlyAward.objects.get(sale=self.enquiry)
+        resp = self.client.get(reverse('edit_sales_enquiry', args=[self.enquiry.pk]))
+        self.assertContains(resp, 'Awarded: <strong>£1,500.00</strong>')
+        self.assertContains(resp, reverse('edit_monthly_award', args=[award.pk]))
+
+    def test_unchanged_split_leaves_a_hand_edited_invoice_alone(self):
+        self.award()
+        invoice = InvoicedJob.objects.get(award__sale=self.enquiry)
+        invoice.utility_value = Decimal('250')  # e.g. part-invoiced on Invoiced Jobs
+        invoice.save()
+        self.client.post(reverse('edit_sales_enquiry', args=[self.enquiry.pk]),
+                         edit_payload(self.enquiry, note='called client'))
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.utility_value, Decimal('250'))
+
+
+    def test_invoice_date_can_be_changed_while_awarded(self):
+        self.award()
+        self.client.post(reverse('edit_sales_enquiry', args=[self.enquiry.pk]),
+                         edit_payload(self.enquiry, invoice_date='2026-06-30'))
+        self.assertEqual(InvoicedJob.objects.get(award__sale=self.enquiry).date, date(2026, 6, 30))
+
+    def test_edit_page_has_no_second_allocation_in_the_award_modal(self):
+        self.award()
+        resp = self.client.get(reverse('edit_sales_enquiry', args=[self.enquiry.pk]))
+        self.assertNotContains(resp, 'Department Value Allocation')
+        self.assertNotContains(resp, 'name="invoice_utility_value"')
+        self.assertContains(resp, 'name="invoice_date"')
+        self.assertContains(resp, 'name="value_utility"')
 
     def test_unawarding_deletes_award_and_invoices(self):
         self.award()
@@ -372,3 +419,197 @@ class ClientReferralAndStatusTests(LoggedInTestCase):
         statuses = dict(Client.objects.values_list('name', 'client_status'))
         self.assertEqual((statuses['Mixed Ltd'], statuses['Plain Ltd'], statuses['Sleepy Ltd']),
                          ('current', 'new', 'dormant'))
+
+
+class SurveyTypeTests(LoggedInTestCase):
+    """Survey types (departments): chosen on any enquiry, synced to its award."""
+
+    def setUp(self):
+        super().setUp()
+        self.enquiry = self.make_enquiry(job_number='9100', value='1000')
+
+    def post_edit(self, **overrides):
+        data = edit_payload(self.enquiry, **overrides)
+        resp = self.client.post(reverse('edit_sales_enquiry', args=[self.enquiry.pk]), data)
+        self.assertEqual(resp.status_code, 302, 'edit form rejected the POST')
+        self.enquiry.refresh_from_db()
+        return resp
+
+    def test_add_saves_several_survey_types_in_display_order(self):
+        self.client.post(reverse('add_sales_enquiry'), {
+            'job_number': '9200', 'location': 'York', 'company_name': 'Acme Ltd',
+            'contact_name': 'John Doe', 'survey_types': ['drone', 'mbs', 'utility'],
+        })
+        self.assertEqual(SalesEnquiry.objects.get(job_number='9200').survey_types,
+                         ['utility', 'mbs', 'drone'])
+
+    def test_survey_types_are_optional(self):
+        self.client.post(reverse('add_sales_enquiry'), {
+            'job_number': '9201', 'location': 'York', 'company_name': 'Acme Ltd', 'contact_name': 'John Doe',
+        })
+        self.assertEqual(SalesEnquiry.objects.get(job_number='9201').survey_types, [])
+
+    def test_unknown_survey_type_is_rejected(self):
+        resp = self.client.post(reverse('edit_sales_enquiry', args=[self.enquiry.pk]),
+                                edit_payload(self.enquiry, survey_types=['cad']))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('survey_types', resp.context['form'].errors)
+
+    def test_edit_sets_survey_types_without_awarding(self):
+        self.post_edit(survey_types=['watercourse', 'cctv_drainage'])
+        self.assertEqual(self.enquiry.survey_types, ['watercourse', 'cctv_drainage'])
+        self.assertEqual(self.enquiry.status, 'Pending')
+        self.assertFalse(MonthlyAward.objects.exists())
+
+    def test_awarding_puts_every_survey_type_value_on_the_invoice(self):
+        values = {'utility': '0', 'mbs': '300', 'topo': '0', 'contractor': '100', 'watercourse': '50',
+                  'cctv_drainage': '50', 'modelling_3d': '100', 'drone': '150', 'engineering': '250'}
+        self.post_edit(status='Awarded', survey_types=list(values), invoice_date='2026-04-01',
+                       **{f'value_{c}': v for c, v in values.items()})
+        self.assertEqual(self.enquiry.value, Decimal('1000'))
+        award = MonthlyAward.objects.get(sale=self.enquiry)
+        invoice = award.invoiced_jobs.get()
+        self.assertEqual(
+            [invoice.mbs_value, invoice.watercourse_value, invoice.cctv_drainage_value,
+             invoice.modelling_3d_value, invoice.drone_value, invoice.engineering_value],
+            [Decimal(v) for v in ('300', '50', '50', '100', '150', '250')])
+        self.assertEqual(invoice.psl_value, Decimal('900'))  # everything except contractor
+        self.assertFalse(award.has_value_mismatch())
+        self.assertEqual(award.survey_types, list(values))
+
+    def test_editing_awarded_enquiry_leaves_award_survey_types(self):
+        self.post_edit(status='Awarded', survey_types=['topo'], invoice_date='2026-04-01', value_topo='1000')
+        self.post_edit(survey_types=['topo', 'drone'], value_topo='1000', value_drone='0')
+        self.assertEqual(self.enquiry.survey_types, ['topo', 'drone'])
+        self.assertEqual(MonthlyAward.objects.get(sale=self.enquiry).survey_types, ['topo'])
+
+    def test_edit_page_shows_a_value_input_per_survey_type(self):
+        resp = self.client.get(reverse('edit_sales_enquiry', args=[self.enquiry.pk]))
+        from sales_tracker.survey_types import SURVEY_TYPES
+        for code, _, _, _ in SURVEY_TYPES:
+            self.assertContains(resp, f'name="value_{code}"')
+            self.assertContains(resp, f'value="{code}"')  # survey type checkbox
+        self.assertNotContains(resp, 'CAD')
+
+    def test_list_and_live_refresh_show_survey_type_badges(self):
+        self.enquiry.survey_types = ['mbs', 'cctv_drainage']
+        self.enquiry.save()
+        page = self.client.get(reverse('sales_tracker'))
+        self.assertContains(page, '<th>Survey Type</th>', html=True)
+        self.assertContains(page, 'data-survey-type="mbs"')
+        self.assertContains(page, 'CCTV Drainage')
+        poll = self.client.get(reverse('sales_tracker_poll'), {'last_count': '0'}).json()['table_html']
+        self.assertIn('data-survey-type="cctv_drainage"', poll)
+
+    def test_ordered_drops_unknown_codes_and_duplicates(self):
+        from sales_tracker.survey_types import ordered
+        self.assertEqual(ordered(['topo', 'cad', 'utility', 'topo']), ['utility', 'topo'])
+
+
+class SurveyTypeValueTests(LoggedInTestCase):
+    """Edit form: a value per ticked survey type; the total is their sum."""
+
+    def setUp(self):
+        super().setUp()
+        self.enquiry = self.make_enquiry(job_number='9300', value='0')
+
+    def post(self, **overrides):
+        resp = self.client.post(reverse('edit_sales_enquiry', args=[self.enquiry.pk]),
+                                edit_payload(self.enquiry, **overrides))
+        self.enquiry.refresh_from_db()
+        return resp
+
+    def test_total_is_the_sum_of_the_ticked_survey_type_values(self):
+        resp = self.post(survey_types=['mbs', 'topo'], value_mbs='600', value_topo='400.50',
+                         value_drone='999', value='5')  # unticked type and typed total are ignored
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.enquiry.value, Decimal('1000.50'))
+        self.assertEqual(self.enquiry.get_survey_type_values(),
+                         {'mbs': Decimal('600'), 'topo': Decimal('400.50')})
+
+    def test_blank_survey_type_value_counts_as_zero(self):
+        self.post(survey_types=['mbs', 'topo'], value_mbs='250', value_topo='')
+        self.assertEqual(self.enquiry.value, Decimal('250'))
+        self.assertEqual(self.enquiry.get_survey_type_values()['topo'], Decimal('0'))
+
+    def test_without_survey_types_the_total_is_typed_in_as_before(self):
+        self.enquiry.survey_types = ['mbs']
+        self.enquiry.survey_type_values = {'mbs': '100'}
+        self.enquiry.save()
+        self.post(survey_types=[], value='750')
+        self.assertEqual(self.enquiry.value, Decimal('750'))
+        self.assertEqual(self.enquiry.survey_type_values, {})
+
+    def test_without_survey_types_a_value_is_required(self):
+        resp = self.post(survey_types=[], value='')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('value', resp.context['form'].errors)
+
+    def test_negative_survey_type_value_is_rejected(self):
+        resp = self.post(survey_types=['mbs'], value_mbs='-5')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('value_mbs', resp.context['form'].errors)
+
+    def test_edit_form_shows_stored_split(self):
+        self.enquiry.survey_types = ['utility', 'drone']
+        self.enquiry.survey_type_values = {'utility': '300.00', 'drone': '200.00'}
+        self.enquiry.value = Decimal('500')
+        self.enquiry.save()
+        form = self.client.get(reverse('edit_sales_enquiry', args=[self.enquiry.pk])).context['form']
+        self.assertEqual(form['value_utility'].value(), Decimal('300.00'))
+        self.assertEqual(form['value_drone'].value(), Decimal('200.00'))
+        self.assertIsNone(form['value_mbs'].value())
+        self.assertEqual(form.fields['value'].label, 'Total Value (£)')
+
+    def test_never_split_value_shows_under_first_type_so_saving_keeps_the_total(self):
+        self.enquiry.survey_types = ['mbs', 'topo']
+        self.enquiry.value = Decimal('800')
+        self.enquiry.save()
+        resp = self.client.get(reverse('edit_sales_enquiry', args=[self.enquiry.pk]))
+        form = resp.context['form']
+        self.assertEqual(form['value_mbs'].value(), Decimal('800'))
+        self.assertIsNone(form['value_topo'].value())
+        self.post(survey_types=['mbs', 'topo'], value_mbs='800', value_topo='')
+        self.assertEqual(self.enquiry.value, Decimal('800'))
+
+    def test_awarding_uses_the_split_total_as_award_value(self):
+        self.post(status='Awarded', survey_types=['mbs', 'topo'], value_mbs='600', value_topo='400',
+                  invoice_date='2026-04-01')
+        award = MonthlyAward.objects.get(sale=self.enquiry)
+        self.assertEqual(award.value, Decimal('1000'))
+        invoice = award.invoiced_jobs.get()
+        self.assertEqual((invoice.mbs_value, invoice.topo_value), (Decimal('600'), Decimal('400')))
+        self.assertFalse(award.has_value_mismatch())
+
+    def test_list_value_tooltip_shows_the_split(self):
+        self.enquiry.survey_types = ['mbs', 'topo']
+        self.enquiry.survey_type_values = {'mbs': '600', 'topo': '400'}
+        self.enquiry.save()
+        resp = self.client.get(reverse('sales_tracker'))
+        self.assertContains(resp, 'title="MBS £600.00, Topo £400.00"')
+
+    def test_migration_0021_splits_existing_values_where_known(self):
+        import importlib
+        from django.apps import apps
+        migration = importlib.import_module('sales_tracker.migrations.0021_backfill_survey_type_values')
+        single = self.make_enquiry(job_number='a', value='500', survey_types=['topo'])
+        matched = self.make_enquiry(job_number='b', value='1000', status='Awarded', survey_types=['mbs', 'topo'])
+        award = self.make_award(sale=matched, value='1000')
+        self.make_invoice(award, mbs='700')
+        self.make_invoice(award, topo='300')
+        unmatched = self.make_enquiry(job_number='c', value='900', status='Awarded', survey_types=['mbs', 'topo'])
+        self.make_invoice(self.make_award(sale=unmatched, value='900'), mbs='100')
+        no_invoice = self.make_enquiry(job_number='d', value='400', survey_types=['utility', 'drone'])
+        kept = self.make_enquiry(job_number='e', value='50', survey_types=['mbs'],
+                                 survey_type_values={'mbs': '50.00'})
+        SalesEnquiry.objects.filter(pk=matched.pk).update(survey_types=['mbs', 'topo'])
+
+        migration.backfill(apps, None)
+        migration.backfill(apps, None)  # re-runnable
+        for e in (single, matched, unmatched, no_invoice, kept):
+            e.refresh_from_db()
+        self.assertEqual(single.survey_type_values, {'topo': '500.00'})
+        self.assertEqual(matched.survey_type_values, {'mbs': '700.00', 'topo': '300.00'})
+        self.assertEqual(unmatched.survey_type_values, {})
+        self.assertEqual(no_invoice.survey_type_values, {})
+        self.assertEqual(kept.survey_type_values, {'mbs': '50.00'})

@@ -228,6 +228,8 @@ def add_monthly_award(request):
 def edit_monthly_award(request, pk):
     """Edit existing monthly award"""
     award = get_object_or_404(MonthlyAward, pk=pk)
+    # Captured before the form runs (it writes the new split onto the instance)
+    old_split = award.get_survey_type_values()
 
     # Get filter params
     page = request.GET.get('page', '1')
@@ -252,7 +254,9 @@ def edit_monthly_award(request, pk):
             updated_award.contact = contact
             updated_award.save()
 
-            # Update linked sale if exists
+            # Update linked sale if exists - job details only. The award's value,
+            # survey types and split are what was awarded and can differ from
+            # the enquiry's quote.
             if updated_award.sale:
                 sale = updated_award.sale
                 old_sale_client_id, old_sale_referral = sale.client_id, sale.referral
@@ -260,12 +264,15 @@ def edit_monthly_award(request, pk):
                 sale.location = updated_award.location
                 sale.client = updated_award.client
                 sale.contact = updated_award.contact
-                sale.value = updated_award.value
                 sale.save()
                 # Moving the sale to another client: keep referral/status consistent
                 sync_moved_enquiry(sale, old_sale_client_id, old_sale_referral)
 
-            messages.success(request, 'Monthly award updated successfully!')
+            # A changed split goes onto the invoice (single-invoice awards only)
+            if updated_award.get_survey_type_values() != old_split and updated_award.apply_split_to_invoice():
+                messages.success(request, 'Monthly award and its invoice updated successfully!')
+            else:
+                messages.success(request, 'Monthly award updated successfully!')
 
             # Redirect back with filters
             params = {'page': page, 'sort_by': sort_by, 'per_page': per_page}

@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 from .models import SalesEnquiry
 from .forms import SalesEnquiryAddForm, SalesEnquiryEditForm
 from .client_sync import client_referral, set_client_referral, promote_new_client, sync_moved_enquiry
+from .survey_types import invoice_fields_from_split
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 from django.template.loader import render_to_string
@@ -219,14 +220,15 @@ def edit_sales_enquiry(request, pk):
 
     # Get existing invoice data if job is already awarded
     existing_invoice = None
+    existing_award = None
     if enquiry.status == 'Awarded':
         from monthly_awards.models import MonthlyAward
         from invoiced_jobs.models import InvoicedJob
 
         try:
-            award = MonthlyAward.objects.filter(sale=enquiry).first()
-            if award:
-                existing_invoice = InvoicedJob.objects.filter(award=award).first()
+            existing_award = MonthlyAward.objects.filter(sale=enquiry).first()
+            if existing_award:
+                existing_invoice = InvoicedJob.objects.filter(award=existing_award).first()
         except:
             pass
 
@@ -250,9 +252,20 @@ def edit_sales_enquiry(request, pk):
             from monthly_awards.models import MonthlyAward
             from invoiced_jobs.models import InvoicedJob
             from django.utils import timezone
-            from decimal import Decimal
 
-            # If status changed to "Awarded", create Monthly Award AND invoice with custom values
+            # On awarding, the award (and its invoice) start from the quote's
+            # value by survey type; what was actually awarded is then edited on
+            # Monthly Awards.
+            new_split = updated_enquiry.get_survey_type_values()
+
+            def parse_invoice_date():
+                raw = request.POST.get('invoice_date', '')
+                try:
+                    return datetime.strptime(raw, '%Y-%m-%d').date() if raw else None
+                except ValueError:
+                    return None
+
+            # If status changed to "Awarded", create Monthly Award AND its invoice
             if old_status != 'Awarded' and updated_enquiry.status == 'Awarded':
                 award = MonthlyAward.objects.create(
                     sale=updated_enquiry,
@@ -261,57 +274,18 @@ def edit_sales_enquiry(request, pk):
                     client=updated_enquiry.client,
                     contact=updated_enquiry.contact,
                     value=updated_enquiry.value,
+                    survey_types=updated_enquiry.survey_types,
+                    survey_type_values=updated_enquiry.survey_type_values,
                     date=timezone.now().date(),
                     created_by=request.user
                 )
-
-                # Get invoice data from POST request
-                invoice_date_str = request.POST.get('invoice_date', '')
-                utility_value = request.POST.get('invoice_utility_value', '0')
-                cad_value = request.POST.get('invoice_cad_value', '0')
-                topo_value = request.POST.get('invoice_topo_value', '0')
-                contractor_value = request.POST.get('invoice_contractor_value', '0')
-
-                # Parse invoice date
-                if invoice_date_str:
-                    try:
-                        invoice_date = datetime.strptime(invoice_date_str, '%Y-%m-%d').date()
-                    except ValueError:
-                        invoice_date = timezone.now().date()
-                else:
-                    invoice_date = timezone.now().date()
-
-                # Convert values to Decimal
-                try:
-                    utility_value = Decimal(utility_value)
-                except (ValueError, TypeError):
-                    utility_value = Decimal('0')
-
-                try:
-                    cad_value = Decimal(cad_value)
-                except (ValueError, TypeError):
-                    cad_value = Decimal('0')
-
-                try:
-                    topo_value = Decimal(topo_value)
-                except (ValueError, TypeError):
-                    topo_value = Decimal('0')
-
-                try:
-                    contractor_value = Decimal(contractor_value)
-                except (ValueError, TypeError):
-                    contractor_value = Decimal('0')
-
-                # Create invoice with specified values
+                invoice_date = parse_invoice_date() or timezone.now().date()
                 InvoicedJob.objects.create(
                     award=award,
                     date=invoice_date,
-                    utility_value=utility_value,
-                    cad_value=cad_value,
-                    topo_value=topo_value,
-                    contractor_value=contractor_value,
                     status='Pending',
-                    created_by=request.user
+                    created_by=request.user,
+                    **invoice_fields_from_split(new_split),
                 )
 
                 messages.success(
@@ -328,68 +302,26 @@ def edit_sales_enquiry(request, pk):
                 else:
                     messages.success(request, 'Sales enquiry updated successfully!')
 
-            # If status is still "Awarded", update linked awards AND invoice
+            # If status is still "Awarded": job details follow the enquiry. The
+            # award's value/survey types/split are what was awarded and can
+            # differ from the quote - they are edited on Monthly Awards only.
             elif updated_enquiry.status == 'Awarded':
-                # Update awards - pass the client FK directly
                 MonthlyAward.objects.filter(sale=updated_enquiry).update(
                     job_number=updated_enquiry.job_number,
                     location=updated_enquiry.location,
                     client=updated_enquiry.client,
                     contact=updated_enquiry.contact,
-                    value=updated_enquiry.value
                 )
-
-                # Update invoice if invoice data was provided
-                invoice_date_str = request.POST.get('invoice_date', '')
-                utility_value = request.POST.get('invoice_utility_value', '')
-                cad_value = request.POST.get('invoice_cad_value', '')
-                topo_value = request.POST.get('invoice_topo_value', '')
-                contractor_value = request.POST.get('invoice_contractor_value', '')
-
-                # If invoice data is present, update the invoice
-                if invoice_date_str or utility_value or cad_value or topo_value or contractor_value:
-                    award = MonthlyAward.objects.filter(sale=updated_enquiry).first()
-                    if award:
-                        invoice = InvoicedJob.objects.filter(award=award).first()
-                        if invoice:
-                            # Parse invoice date
-                            if invoice_date_str:
-                                try:
-                                    invoice.date = datetime.strptime(invoice_date_str, '%Y-%m-%d').date()
-                                except ValueError:
-                                    pass
-
-                            # Update values
-                            if utility_value:
-                                try:
-                                    invoice.utility_value = Decimal(utility_value)
-                                except (ValueError, TypeError):
-                                    pass
-
-                            if cad_value:
-                                try:
-                                    invoice.cad_value = Decimal(cad_value)
-                                except (ValueError, TypeError):
-                                    pass
-
-                            if topo_value:
-                                try:
-                                    invoice.topo_value = Decimal(topo_value)
-                                except (ValueError, TypeError):
-                                    pass
-
-                            if contractor_value:
-                                try:
-                                    invoice.contractor_value = Decimal(contractor_value)
-                                except (ValueError, TypeError):
-                                    pass
-
-                            invoice.save()
-                            messages.success(request, 'Sales enquiry, linked awards, and invoice updated successfully!')
-                        else:
-                            messages.success(request, 'Sales enquiry and linked awards updated successfully!')
-                    else:
-                        messages.success(request, 'Sales enquiry updated successfully!')
+                awards = list(MonthlyAward.objects.filter(sale=updated_enquiry))
+                invoice_updated = False
+                invoice_date = parse_invoice_date()
+                first_invoice = InvoicedJob.objects.filter(award=awards[0]).first() if awards else None
+                if invoice_date and first_invoice and first_invoice.date != invoice_date:
+                    first_invoice.date = invoice_date
+                    first_invoice.save()
+                    invoice_updated = True
+                if invoice_updated:
+                    messages.success(request, 'Sales enquiry, linked awards, and invoice updated successfully!')
                 else:
                     messages.success(request, 'Sales enquiry and linked awards updated successfully!')
             else:
@@ -420,6 +352,7 @@ def edit_sales_enquiry(request, pk):
         'per_page': per_page,
         'scroll_pos': scroll_pos,
         'existing_invoice': existing_invoice,
+        'existing_award': existing_award,
     }
     return render(request, 'sales_enquiry_form.html', context)
 

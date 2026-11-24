@@ -6,7 +6,7 @@ Internal Django app for PSL to track work from first enquiry to invoice:
 
 - **Sales Tracker** — enquiries with job number, client/contact, value, status (Pending / Awarded / Rejected / Not Quoted), feedback, notes and referral source. Marking a job *Awarded* asks for the projected invoice date and department split, and creates the Monthly Award and Invoiced Job automatically.
 - **Monthly Awards** — awarded jobs by month, with warnings for awards with no invoice or whose invoices don't add up to the award value. Edits sync back to the sales enquiry.
-- **Invoiced Jobs** — invoices by month (several per award allowed) split into Utility / CAD / Topo / Contractor, with PSL value (= Utility + CAD + Topo), monthly totals, invoiced vs pending, and follow-up tracking.
+- **Invoiced Jobs** — invoices by month (several per award allowed) split by department (Utility / MBS / Topo / Contractor / Watercourse / CCTV Drainage / 3D Modelling / Drone Survey / Engineering), with PSL value (= everything except Contractor), monthly totals, invoiced vs pending, and follow-up tracking.
 - **Clients** — one record per company with sector and status, multiple contacts each; autocomplete on all forms.
 - **Statistic Explorer** — win/loss, feedback, sector, client-status and referral statistics for all time, a month, or a date range; printable export.
 

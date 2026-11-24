@@ -1,0 +1,32 @@
+{% comment %}
+Checkbox chips for a SurveyTypesField. Needs: field (bound form field).
+Used by the Sales Enquiry and Monthly Award forms.
+{% endcomment %}
+<style>
+    .survey-type-picker { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .survey-type-picker label.survey-type-chip {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        margin: 0; padding: 0.45rem 0.8rem;
+        border: 2px solid #e5e7eb; border-radius: 999px;
+        background: #fff; color: #374151; font-weight: 500; font-size: 0.9rem;
+        cursor: pointer; user-select: none; transition: all 0.15s;
+    }
+    .survey-type-picker label.survey-type-chip:hover { border-color: rgb(88,70,164); }
+    .survey-type-picker label.survey-type-chip input { accent-color: rgb(88,70,164); margin: 0; }
+    .survey-type-picker label.survey-type-chip:has(input:checked) {
+        border-color: rgb(88,70,164); background: rgba(88,70,164,0.08); color: rgb(60,45,130); font-weight: 600;
+    }
+    .survey-type-help { font-size: 0.8rem; color: #6b7280; margin-top: 0.4rem; }
+</style>
+<div class="form-group">
+    <label>{{ field.label }}</label>
+    <div class="survey-type-picker" id="survey-type-picker">
+        {% for cb in field %}
+        <label class="survey-type-chip" for="{{ cb.id_for_label }}">{{ cb.tag }} {{ cb.choice_label }}</label>
+        {% endfor %}
+    </div>
+    <div class="survey-type-help">Tick every survey type that applies to this job.</div>
+    {% if field.errors %}
+        <div class="error-message">{{ field.errors }}</div>
+    {% endif %}
+</div>

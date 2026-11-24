@@ -1,0 +1,5 @@
+{% comment %}
+Survey type pills for list tables. Needs: items = obj.survey_type_badges
+(list of {code, label, color} from sales_tracker/survey_types.py).
+Styles are inline so it also works in the Sales Tracker live-refresh rows.
+{% endcomment %}{% for t in items %}<span class="survey-type-badge" data-survey-type="{{ t.code }}" style="display:inline-block; padding:1px 7px; margin:1px 3px 1px 0; border-radius:10px; font-size:0.72rem; font-weight:600; line-height:1.5; color:#fff; white-space:nowrap; background:{{ t.color }};">{{ t.label }}</span>{% empty %}<span style="color: #d1d5db; font-style: italic;">-</span>{% endfor %}

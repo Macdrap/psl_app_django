@@ -52,10 +52,10 @@ class LoggedInTestCase(TestCase):
             date=award_date or date.today(), created_by=self.user, **kwargs,
         )
 
-    def make_invoice(self, award, utility='0', cad='0', topo='0', contractor='0',
+    def make_invoice(self, award, utility='0', mbs='0', topo='0', contractor='0',
                      status='Pending', invoice_date=None, **kwargs):
         return InvoicedJob.objects.create(
-            award=award, utility_value=Decimal(utility), cad_value=Decimal(cad),
+            award=award, utility_value=Decimal(utility), mbs_value=Decimal(mbs),
             topo_value=Decimal(topo), contractor_value=Decimal(contractor),
             status=status, date=invoice_date or date.today(), created_by=self.user, **kwargs,
         )
