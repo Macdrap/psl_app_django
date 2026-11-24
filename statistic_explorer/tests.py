@@ -292,3 +292,93 @@ class ReferralConversionTests(LoggedInTestCase):
             hidden = self.client.get(reverse('statistic_explorer_pdf'), {'show_referral': 'false'})
         self.assertContains(pdf, 'New Client Conversion by Referral Source')
         self.assertNotContains(hidden, 'New Client Conversion')
+
+
+class SurveyTypeAnalysisTests(LoggedInTestCase):
+    """Survey Type Analysis: quoted from the enquiries, awarded from the awards."""
+
+    def setUp(self):
+        super().setUp()
+        d = date(2026, 3, 10)
+        job1 = self.make_enquiry(job_number='1', value='1000', status='Awarded', date=d, survey_types=['mbs', 'topo'],
+                                 survey_type_values={'mbs': '600.00', 'topo': '400.00'})
+        # less was awarded than quoted: MBS £450 instead of £600
+        self.make_award(sale=job1, value='850', survey_types=['mbs', 'topo'],
+                        survey_type_values={'mbs': '450.00', 'topo': '400.00'})
+        self.make_enquiry(job_number='2', value='500', status='Rejected', date=d, survey_types=['mbs'],
+                          survey_type_values={'mbs': '500.00'})
+        self.make_enquiry(job_number='3', value='0', status='Pending', date=d, survey_types=['topo'])  # not a quote
+        self.make_enquiry(job_number='4', value='200', status='Pending', date=d)                       # untagged
+        job5 = self.make_enquiry(job_number='5', value='800', status='Awarded', date=date(2025, 1, 5),
+                                 survey_types=['drone'], survey_type_values={'drone': '800.00'})
+        self.make_award(sale=job5, value='800', survey_types=['drone'], survey_type_values={'drone': '800.00'})
+        # manual award (no enquiry): not part of the Statistic Explorer
+        self.make_award(job_number='M1', value='5000', survey_types=['mbs'], survey_type_values={'mbs': '5000.00'})
+
+    def stats(self, **params):
+        resp = self.client.get(reverse('statistic_explorer'), params)
+        self.assertEqual(resp.status_code, 200)
+        st = resp.context['survey_type_data']
+        return resp, st, {r['code']: r for r in st['rows']}
+
+    def test_per_type_figures_and_awarded_total(self):
+        _, st, rows = self.stats(filter_type='month', year=2026, month=3)
+        self.assertEqual(set(rows), {'mbs', 'topo'})
+        mbs, topo = rows['mbs'], rows['topo']
+        self.assertEqual((mbs['enquiries'], mbs['quotes'], mbs['quoted_value']), (2, 2, Decimal('1100')))
+        self.assertEqual((mbs['awarded_count'], mbs['awarded_value'], mbs['rejected_count']),
+                         (1, Decimal('450'), 1))  # the award's value, not the quote's £600
+        self.assertEqual((mbs['win_rate'], mbs['win_rate_value']), (50.0, 40.9))
+        self.assertEqual((topo['enquiries'], topo['quotes'], topo['awarded_value'], topo['win_rate']),
+                         (2, 1, Decimal('400'), 100.0))
+        self.assertEqual((mbs['awarded_pct'], topo['awarded_pct']), (52.9, 47.1))
+        self.assertEqual((st['total_awarded'], st['total_quoted']), (Decimal('850'), Decimal('1500')))
+        self.assertEqual((st['untagged'], st['multi_type']), (1, 1))
+
+    def test_follows_the_date_filter(self):
+        _, _, rows = self.stats()
+        self.assertIn('drone', rows)
+        _, st, rows = self.stats(filter_type='range', date_from='2025-01-01', date_to='2025-12-31')
+        self.assertEqual(set(rows), {'drone'})
+        self.assertEqual(st['total_awarded'], Decimal('800'))
+
+    def test_page_and_pdf_show_awarded_total_and_no_dept_share(self):
+        resp, _, _ = self.stats(filter_type='month', year=2026, month=3)
+        self.assertContains(resp, 'Survey Type Analysis')
+        self.assertContains(resp, 'id="surveyTypeShareChart"')
+        self.assertContains(resp, 'id="st-awarded"')
+        self.assertContains(resp, 'Awarded value total')
+        self.assertNotContains(resp, 'Dept. Share')
+        with mock.patch.dict(sys.modules, {'weasyprint': None}):  # HTML fallback
+            pdf = self.client.get(reverse('statistic_explorer_pdf'))
+            hidden = self.client.get(reverse('statistic_explorer_pdf'), {'show_survey_type': 'false'})
+        self.assertContains(pdf, 'Survey Type Analysis')
+        self.assertContains(pdf, 'Awarded value total')
+        self.assertNotContains(pdf, 'Dept. Share')
+        self.assertNotContains(hidden, 'Survey Type Analysis')
+
+    def test_no_survey_types_shows_empty_message(self):
+        from monthly_awards.models import MonthlyAward
+        SalesEnquiry.objects.update(survey_types=[])
+        _, st, rows = self.stats()
+        self.assertEqual(set(rows), {'mbs', 'topo', 'drone'})  # awards still have survey types
+        MonthlyAward.objects.update(survey_types=[])
+        resp, st, _ = self.stats()
+        self.assertFalse(st['has_data'])
+        self.assertContains(resp, 'No survey type data available')
+
+
+class SurveyTypeSplitStatsTests(LoggedInTestCase):
+    def test_values_add_up_and_never_split_jobs_count_under_their_first_type(self):
+        job1 = self.make_enquiry(job_number='1', value='1000', status='Awarded', survey_types=['mbs', 'topo'],
+                                 survey_type_values={'mbs': '600', 'topo': '400'})
+        self.make_award(sale=job1, value='1000', survey_types=['mbs', 'topo'],
+                        survey_type_values={'mbs': '600', 'topo': '400'})
+        job2 = self.make_enquiry(job_number='2', value='500', status='Awarded', survey_types=['mbs', 'topo'])  # never split
+        self.make_award(sale=job2, value='500', survey_types=['mbs', 'topo'])
+        st = self.client.get(reverse('statistic_explorer')).context['survey_type_data']
+        rows = {r['code']: r for r in st['rows']}
+        self.assertEqual((rows['mbs']['quoted_value'], rows['mbs']['awarded_value']), (Decimal('1100'), Decimal('1100')))
+        self.assertEqual(rows['topo']['awarded_value'], Decimal('400'))
+        self.assertEqual((rows['mbs']['awarded_count'], rows['topo']['awarded_count']), (2, 2))
+        self.assertEqual(st['total_awarded'], Decimal('1500'))  # = the two jobs' real values

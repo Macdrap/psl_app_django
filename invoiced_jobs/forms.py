@@ -1,11 +1,42 @@
-from email.policy import default
+from decimal import Decimal
 
 from django import forms
 from .models import InvoicedJob
 from monthly_awards.models import MonthlyAward
+from sales_tracker.survey_types import SURVEY_TYPES, DEPARTMENT_VALUE_FIELDS
 
 
-class InvoicedJobForm(forms.ModelForm):
+def _department_widgets(placeholder=None):
+    return {
+        field: forms.NumberInput(attrs={
+            'class': 'form-input department-value',
+            'placeholder': placeholder or f'Enter {label} value',
+            'step': '0.01',
+            'min': '0',
+        })
+        for _, label, field, _ in SURVEY_TYPES
+    }
+
+
+DEPARTMENT_LABELS = {field: f'{label} Value (£)' for _, label, field, _ in SURVEY_TYPES}
+
+
+class DepartmentValuesMixin:
+    """Department values are optional: blank means £0."""
+
+    def _make_departments_optional(self):
+        for field in DEPARTMENT_VALUE_FIELDS:
+            self.fields[field].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        for field in DEPARTMENT_VALUE_FIELDS:
+            if field in cleaned and cleaned[field] is None:
+                cleaned[field] = Decimal('0')
+        return cleaned
+
+
+class InvoicedJobForm(DepartmentValuesMixin, forms.ModelForm):
     """Form for creating/editing invoiced jobs with better award selection"""
 
     award_search = forms.CharField(
@@ -20,8 +51,8 @@ class InvoicedJobForm(forms.ModelForm):
 
     class Meta:
         model = InvoicedJob
-        fields = ['award', 'description', 'date', 'utility_value',
-                  'cad_value', 'topo_value', 'contractor_value', 'status', 'follow_up_status', 'followed_up_date']
+        fields = ['award', 'description', 'date', *DEPARTMENT_VALUE_FIELDS,
+                  'status', 'follow_up_status', 'followed_up_date']
         widgets = {
             'award': forms.Select(attrs={
                 'class': 'form-input',
@@ -37,30 +68,7 @@ class InvoicedJobForm(forms.ModelForm):
                 'class': 'form-input',
                 'type': 'date'
             }),
-            'utility_value': forms.NumberInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter utility value',
-                'step': '0.01',
-                'min': '0'
-            }),
-            'cad_value': forms.NumberInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter CAD value',
-                'step': '0.01',
-                'min': '0'
-            }),
-            'topo_value': forms.NumberInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter Topo value',
-                'step': '0.01',
-                'min': '0'
-            }),
-            'contractor_value': forms.NumberInput(attrs={
-                'class': 'form-input',
-                'placeholder': 'Enter contractor value',
-                'step': '0.01',
-                'min': '0'
-            }),
+            **_department_widgets(),
             'status': forms.Select(attrs={
                 'class': 'form-input'
             }),
@@ -77,16 +85,14 @@ class InvoicedJobForm(forms.ModelForm):
             'award': 'Monthly Award',
             'description': 'Description',
             'date': 'Projected Invoice Date',
-            'utility_value': 'Utility Value (£)',
-            'cad_value': 'CAD Value (£)',
-            'topo_value': 'Topo Value (£)',
-            'contractor_value': 'Contractor Value (£)',
+            **DEPARTMENT_LABELS,
             'follow_up_status': 'Follow-Up Status',
             'followed_up_date': 'Follow-Up Date',
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._make_departments_optional()
         # Show awards with better formatting
         awards = MonthlyAward.objects.all().order_by('-date')
 
@@ -98,14 +104,17 @@ class InvoicedJobForm(forms.ModelForm):
 
         self.fields['award'].choices = choices
 
+    def department_fields(self):
+        """Bound fields of the department values, in survey type order (for templates)."""
+        return [self[field] for field in DEPARTMENT_VALUE_FIELDS]
 
-class QuickInvoiceForm(forms.ModelForm):
+
+class QuickInvoiceForm(DepartmentValuesMixin, forms.ModelForm):
     """Simplified form for quickly adding invoice data to an award"""
 
     class Meta:
         model = InvoicedJob
-        fields = ['description', 'date', 'utility_value', 'cad_value',
-                  'topo_value', 'contractor_value', 'status']
+        fields = ['description', 'date', *DEPARTMENT_VALUE_FIELDS, 'status']
         widgets = {
             'description': forms.Textarea(attrs={
                 'class': 'form-input',
@@ -116,30 +125,7 @@ class QuickInvoiceForm(forms.ModelForm):
                 'class': 'form-input',
                 'type': 'date'
             }),
-            'utility_value': forms.NumberInput(attrs={
-                'class': 'form-input',
-                'placeholder': '0.00',
-                'step': '0.01',
-                'min': '0'
-            }),
-            'cad_value': forms.NumberInput(attrs={
-                'class': 'form-input',
-                'placeholder': '0.00',
-                'step': '0.01',
-                'min': '0'
-            }),
-            'topo_value': forms.NumberInput(attrs={
-                'class': 'form-input',
-                'placeholder': '0.00',
-                'step': '0.01',
-                'min': '0'
-            }),
-            'contractor_value': forms.NumberInput(attrs={
-                'class': 'form-input',
-                'placeholder': '0.00',
-                'step': '0.01',
-                'min': '0'
-            }),
+            **_department_widgets(placeholder='0.00'),
             'status': forms.Select(attrs={
                 'class': 'form-input'
             }),
@@ -147,8 +133,9 @@ class QuickInvoiceForm(forms.ModelForm):
         labels = {
             'description': 'Description',
             'date': 'Projected Invoice Date',
-            'utility_value': 'Utility Value (£)',
-            'cad_value': 'CAD Value (£)',
-            'topo_value': 'Topo Value (£)',
-            'contractor_value': 'Contractor Value (£)',
+            **DEPARTMENT_LABELS,
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._make_departments_optional()

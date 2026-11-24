@@ -7,6 +7,7 @@ from datetime import datetime, date
 from decimal import Decimal
 
 from sales_tracker.models import SalesEnquiry
+from sales_tracker.survey_types import SURVEY_TYPES, ordered
 from clients.models import SECTOR_CHOICES, CLIENT_STATUS_CHOICES
 
 # Statuses that count as a quote in the Client Analysis section. Not Quoted is
@@ -68,6 +69,110 @@ def client_quote_stats(enquiries):
         })
     result.sort(key=lambda row: (-row['total_value'], row['name'].lower()))
     return result
+
+
+def _value_by_type(codes, split, value):
+    """{code: Decimal} for one job: its value by survey type, or - if it was
+    never split (old data) - the whole value under its first survey type."""
+    zero = Decimal('0.00')
+    if split:
+        return {code: Decimal(str(split.get(code) or '0')) for code in codes}
+    return {code: (value if i == 0 else zero) for i, code in enumerate(codes)}
+
+
+def survey_type_stats(enquiries):
+    """Figures per survey type (department) over date-filtered enquiries.
+
+    - Quoted / pending / rejected come from the enquiries (the quote).
+      Quote = Pending/Awarded/Rejected over £0 (QUOTED_STATUSES).
+    - Awarded comes from the Monthly Awards of the period's Awarded quotes:
+      what was actually awarded, which can differ from the quote. Manual
+      awards (no enquiry) are not included, like the rest of the page.
+    - Counts: a job counts once under each of its survey types (the enquiry's
+      types for quotes, the award's types for awarded).
+    - £ figures use the value by survey type (survey_type_values), so each
+      pound is counted once and the per-type values add up; a record never
+      split counts under its first survey type, as the edit form shows it.
+    Win rate = awarded ÷ quotes, as in Client Analysis.
+    """
+    from monthly_awards.models import MonthlyAward
+
+    zero = Decimal('0.00')
+    rows = {
+        code: {
+            'code': code, 'label': label, 'color': color,
+            'enquiries': 0, 'quotes': 0, 'quoted_value': zero,
+            'awarded_count': 0, 'awarded_value': zero,
+            'pending_count': 0, 'pending_value': zero,
+            'rejected_count': 0, 'rejected_value': zero,
+        }
+        for code, label, _, color in SURVEY_TYPES
+    }
+    untagged = multi_type = tagged = 0
+    awarded_quote_ids = []
+    rows_qs = enquiries.order_by().values_list('pk', 'survey_types', 'survey_type_values', 'status', 'value')
+    for pk, types, split, status, value in rows_qs:
+        value = value or zero
+        is_quote = status in QUOTED_STATUSES and value > 0
+        if is_quote and status == 'Awarded':
+            awarded_quote_ids.append(pk)
+        codes = ordered(types)
+        if not codes:
+            untagged += 1
+            continue
+        tagged += 1
+        if len(codes) > 1:
+            multi_type += 1
+        shares = _value_by_type(codes, split, value)
+        for code in codes:
+            row = rows[code]
+            row['enquiries'] += 1
+            if not is_quote:
+                continue
+            row['quotes'] += 1
+            row['quoted_value'] += shares[code]
+            if status in ('Pending', 'Rejected'):
+                key = status.lower()
+                row[f'{key}_count'] += 1
+                row[f'{key}_value'] += shares[code]
+
+    # Awarded: what the awards of the period's awarded quotes say
+    awards = MonthlyAward.objects.filter(sale_id__in=awarded_quote_ids).values_list(
+        'sale_id', 'survey_types', 'survey_type_values', 'value')
+    types_by_sale = {}
+    for sale_id, types, split, value in awards:
+        codes = ordered(types)
+        for code, share in _value_by_type(codes, split, value or zero).items():
+            rows[code]['awarded_value'] += share
+        types_by_sale.setdefault(sale_id, set()).update(codes)
+    for codes in types_by_sale.values():
+        for code in codes:
+            rows[code]['awarded_count'] += 1
+
+    active = [r for r in rows.values() if r['enquiries'] or r['awarded_count']]
+    total_quoted = sum((r['quoted_value'] for r in active), zero)
+    total_awarded = sum((r['awarded_value'] for r in active), zero)
+    for row in active:
+        row['win_rate'] = round(row['awarded_count'] / row['quotes'] * 100, 1) if row['quotes'] else 0
+        row['win_rate_value'] = (round(float(row['awarded_value']) / float(row['quoted_value']) * 100, 1)
+                                 if row['quoted_value'] else 0)
+        row['awarded_pct'] = (round(float(row['awarded_value']) / float(total_awarded) * 100, 1)
+                              if total_awarded else 0)
+
+    return {
+        'rows': active,
+        'has_data': bool(active),
+        'total_quoted': total_quoted,
+        'total_awarded': total_awarded,
+        'untagged': untagged,
+        'tagged': tagged,
+        'multi_type': multi_type,
+        # Chart-ready lists
+        'labels': [r['label'] for r in active],
+        'colors': [r['color'] for r in active],
+        'quoted_values': [float(r['quoted_value']) for r in active],
+        'awarded_values': [float(r['awarded_value']) for r in active],
+    }
 
 
 # Where a referred client has got to. Order = display order (best first).
@@ -549,6 +654,9 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
         # ── Client analysis (one row per client quoted for) ───────────────────
         client_rows = client_quote_stats(enquiries)
 
+        # ── Survey type (department) analysis ─────────────────────────────────
+        survey_type_data = survey_type_stats(enquiries)
+
         # Generate year range for dropdown
         year_range = range(2020, current_year + 2)
 
@@ -616,6 +724,9 @@ class StatisticExplorerView(LoginRequiredMixin, TemplateView):
             'cs_total_clients':   cs_total_clients,
             'cs_total_value':     total_all_enquiry_value,
 
+            # Survey type / department analysis
+            'survey_type_data': survey_type_data,
+
             # Client analysis (sorted by total quoted, highest first)
             'client_rows':        client_rows,
             'client_rows_top':    client_rows[:CLIENT_TABLE_TOP_N],
@@ -650,6 +761,7 @@ class StatisticExplorerPDFView(LoginRequiredMixin, TemplateView):
         context['show_client_status']   = request.GET.get('show_client_status', 'true') == 'true'
         context['show_referral']        = request.GET.get('show_referral', 'true') == 'true'
         context['show_client_analysis'] = request.GET.get('show_client_analysis', 'true') == 'true'
+        context['show_survey_type']     = request.GET.get('show_survey_type', 'true') == 'true'
 
         # Render PDF template
         html_string = render_to_string('statistic_explorer_pdf.html', context)

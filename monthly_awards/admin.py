@@ -46,7 +46,7 @@ class MonthlyAwardAdmin(admin.ModelAdmin):
             'description': 'Optional: Link this award to an existing sales enquiry'
         }),
         ('Award Information', {
-            'fields': ('job_number', 'date', 'value')
+            'fields': ('job_number', 'date', 'value', 'survey_types')
         }),
         ('Client', {
             'fields': ('client', 'contact')

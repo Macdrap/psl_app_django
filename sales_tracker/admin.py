@@ -46,7 +46,7 @@ class SalesEnquiryAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Job Information', {
-            'fields': ('job_number', 'date', 'value', 'status')
+            'fields': ('job_number', 'date', 'value', 'status', 'survey_types', 'survey_type_values')
         }),
         ('Client', {
             'fields': ('client', 'contact')

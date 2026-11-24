@@ -301,47 +301,23 @@
 
         <h3 style="margin-bottom: 1rem; color: #374151;">💰 Value Breakdown</h3>
 
-        <!-- Value Breakdown - Row 1 -->
+        <!-- Value Breakdown - one input per survey type (department) -->
         <div class="form-grid three-col">
+            {% for field in form.department_fields %}
             <div class="form-group">
-                <label for="{{ form.utility_value.id_for_label }}">Utility Value (£)</label>
-                {{ form.utility_value }}
-                {% if form.utility_value.errors %}
-                    <div class="error-message">{{ form.utility_value.errors }}</div>
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    <div class="error-message">{{ field.errors }}</div>
                 {% endif %}
             </div>
-
-            <div class="form-group">
-                <label for="{{ form.cad_value.id_for_label }}">CAD Value (£)</label>
-                {{ form.cad_value }}
-                {% if form.cad_value.errors %}
-                    <div class="error-message">{{ form.cad_value.errors }}</div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Value Breakdown - Row 2 -->
-        <div class="form-grid">
-            <div class="form-group">
-                <label for="{{ form.topo_value.id_for_label }}">Topo Value (£)</label>
-                {{ form.topo_value }}
-                {% if form.topo_value.errors %}
-                    <div class="error-message">{{ form.topo_value.errors }}</div>
-                {% endif %}
-            </div>
-
-            <div class="form-group">
-                <label for="{{ form.contractor_value.id_for_label }}">Contractor Value (£)</label>
-                {{ form.contractor_value }}
-                {% if form.contractor_value.errors %}
-                    <div class="error-message">{{ form.contractor_value.errors }}</div>
-                {% endif %}
-            </div>
+            {% endfor %}
         </div>
 
         <div class="info-box">
             ℹ️ <strong>Note:</strong> PSL Value will be automatically calculated as: Total Award Value - Contractor Value.
-            The sum of all value fields should equal the total award value.
+            The sum of all value fields should equal the total award value. Any department given a value is
+            added to the job's survey types.
         </div>
 
         <div class="section-divider"></div>

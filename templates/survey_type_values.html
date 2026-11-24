@@ -1,0 +1,81 @@
+{% comment %}
+Value by survey type: one £ input per ticked survey type; the total value input
+is read-only and is their sum. With nothing ticked the total can be typed
+(old records only - the form decides). Used by the Sales Enquiry edit form and
+the Monthly Award form. Needs:
+  form        - a form using SurveyTypeValuesMixin
+  value_field - the form's total value field (form.value)
+Must come after survey_type_picker.html (reads its checkboxes). Put an element
+with id="valueHint" under the total input for the helper text (optional).
+{% endcomment %}
+<style>
+    .survey-value-box {
+        background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 12px;
+        padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+    }
+    .survey-value-title { font-weight: 600; color: #1f2937; margin-bottom: 1rem; }
+    .survey-value-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;
+    }
+    .survey-value-dot {
+        display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px;
+    }
+    .survey-value-empty { color: #6b7280; font-size: 0.875rem; }
+    .form-input[readonly] { background: #f3f4f6; color: #1f2937; font-weight: 600; cursor: not-allowed; }
+    .value-hint { font-size: 0.8rem; color: #6b7280; margin-top: 0.35rem; }
+</style>
+<div class="survey-value-box" id="surveyTypeValues">
+    <div class="survey-value-title">Value by Survey Type</div>
+    <div class="survey-value-grid">
+        {% for item in form.survey_type_value_fields %}
+        <div class="form-group survey-value-group" data-survey-type="{{ item.code }}">
+            <label for="{{ item.field.id_for_label }}"><span class="survey-value-dot" style="background:{{ item.color }};"></span>{{ item.label }} (£)</label>
+            {{ item.field }}
+            {% if item.field.errors %}
+                <div class="error-message">{{ item.field.errors }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    <div class="survey-value-empty" id="surveyValueEmpty">Tick a survey type above to enter its value.</div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const valueInput = document.getElementById('{{ value_field.id_for_label }}');
+    const boxes = Array.from(document.querySelectorAll('#survey-type-picker input[type=checkbox]'));
+    const inputs = Array.from(document.querySelectorAll('.survey-type-value'));
+    const emptyMsg = document.getElementById('surveyValueEmpty');
+    const hint = document.getElementById('valueHint');
+    if (!valueInput) return;
+
+    function update(fromTick) {
+        const ticked = boxes.filter(cb => cb.checked).map(cb => cb.value);
+        const tickedInputs = inputs.filter(i => ticked.includes(i.dataset.surveyType));
+        inputs.forEach(i => {
+            i.closest('.survey-value-group').style.display = ticked.includes(i.dataset.surveyType) ? '' : 'none';
+        });
+        emptyMsg.style.display = ticked.length ? 'none' : '';
+        const num = el => parseFloat(el.value) || 0;
+
+        if (ticked.length) {
+            // First tick on a record whose total was typed in: keep that total
+            // by putting it under the first ticked survey type.
+            const splitSum = tickedInputs.reduce((s, i) => s + num(i), 0);
+            if (fromTick && !valueInput.readOnly && splitSum === 0 && num(valueInput) > 0) {
+                tickedInputs[0].value = num(valueInput).toFixed(2);
+            }
+            valueInput.readOnly = true;
+            valueInput.value = tickedInputs.reduce((s, i) => s + num(i), 0).toFixed(2);
+            if (hint) hint.textContent = 'Sum of the survey type values above.';
+        } else {
+            valueInput.readOnly = false;
+            if (hint) hint.textContent = 'Tick a survey type to allocate the value by survey type.';
+        }
+        valueInput.dispatchEvent(new Event('survey-values-changed'));
+    }
+
+    boxes.forEach(cb => cb.addEventListener('change', () => update(true)));
+    inputs.forEach(i => i.addEventListener('input', () => update(false)));
+    update(false);
+});
+</script>

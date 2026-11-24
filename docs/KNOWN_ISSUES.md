@@ -10,7 +10,7 @@ None known.
 
 - URL prefixes lack a trailing slash → paths like `/sales-trackeradd/`. Always use URL names.
 - Sorting by job number puts non-numeric job numbers before numeric ones.
-- Editing an awarded enquiry only updates the **first** invoice of the **first** award with the modal values.
+- Editing an awarded enquiry (or an award) only copies a changed value-by-survey-type onto the invoice while the award has exactly **one** invoice; staged invoices are left alone and the award shows a mismatch until they are fixed on Invoiced Jobs. The projected invoice date only updates the first invoice.
 - Award date for auto-created awards is "today" in UTC (`TIME_ZONE='UTC'`), so an award made just after midnight UK summer time is dated the previous day.
 - `get_or_create_client()` is copy-pasted in `sales_tracker/views.py` and `monthly_awards/views.py`.
 - Typing an existing contact's name with a blank email/phone **clears** their stored email/phone.

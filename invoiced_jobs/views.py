@@ -9,6 +9,7 @@ from datetime import datetime
 from .models import InvoicedJob
 from .forms import InvoicedJobForm
 from monthly_awards.models import MonthlyAward
+from sales_tracker.survey_types import SURVEY_TYPES
 
 
 @login_required
@@ -34,7 +35,7 @@ def invoiced_jobs_list(request):
     jobs = InvoicedJob.objects.filter(
         date__year=selected_year,
         date__month=selected_month
-    ).select_related('award')
+    ).select_related('award', 'award__client', 'award__contact')
 
     # Search functionality
     search_query = request.GET.get('search', '')
@@ -52,12 +53,7 @@ def invoiced_jobs_list(request):
         job.has_mismatch = job.award.has_value_mismatch()
         job.award_total = job.award.value
         job.total_invoiced = job.award.get_total_invoiced()
-        job.this_invoice_total = (
-            job.utility_value +
-            job.cad_value +
-            job.topo_value +
-            job.contractor_value
-        )
+        job.this_invoice_total = job.get_total_invoice_value()
         jobs_with_flags.append(job)
 
     # Sort by filter
@@ -84,19 +80,23 @@ def invoiced_jobs_list(request):
     # Calculate totals for the month (before pagination)
     invoiced_jobs = [j for j in jobs_with_flags if j.status == 'Invoiced']
     pending_jobs = [j for j in jobs_with_flags if j.status == 'Pending']
-    utils_jobs = [j for j in jobs_with_flags if j.utility_value > 0]
-    topo_jobs = [j for j in jobs_with_flags if j.topo_value > 0]
-    cad_jobs = [j for j in jobs_with_flags if j.cad_value > 0]
-    contractor_jobs = [j for j in jobs_with_flags if j.contractor_value > 0]
+
+    # One summary card per department (survey type): total and invoice count
+    department_totals = []
+    for code, label, field, color in SURVEY_TYPES:
+        with_value = [j for j in jobs_with_flags if getattr(j, field) > 0]
+        department_totals.append({
+            'code': code, 'label': label, 'color': color,
+            'total': sum((getattr(j, field) for j in with_value), 0),
+            'count': len(with_value),
+        })
+    department_total_by_code = {d['code']: d for d in department_totals}
 
     total_invoiced = sum(j.this_invoice_total for j in invoiced_jobs)
     total_pending = sum(j.this_invoice_total for j in pending_jobs)
     total_value = total_invoiced + total_pending
-    contractor_value = sum(j.contractor_value for j in contractor_jobs)
+    contractor_value = department_total_by_code['contractor']['total']
     total_psl_value = total_value - contractor_value
-    total_utils = sum(j.utility_value for j in utils_jobs)
-    total_topo = sum(j.topo_value for j in topo_jobs)
-    total_cad = sum(j.cad_value for j in cad_jobs)
     jobs_count = len(jobs_with_flags)
 
     # Get per_page value from request, default to 100
@@ -137,12 +137,8 @@ def invoiced_jobs_list(request):
         'total_pending': total_pending,
         'total_value': total_value,
         'total_psl_value': total_psl_value,
-        'total_utils': total_utils,
-        'utils_jobs_count':len(utils_jobs),
-        'total_topo': total_topo,
-        'topo_jobs_count': len(topo_jobs),
-        'total_cad': total_cad,
-        'cad_jobs_count': len(cad_jobs),
+        'department_totals': department_totals,
+        'department_total_by_code': department_total_by_code,
         'invoiced_count': len(invoiced_jobs),
         'pending_count': len(pending_jobs),
         'selected_year': selected_year,
