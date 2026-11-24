@@ -77,7 +77,8 @@ CONVERSION_OUTCOMES = [
     ('returned', 'Came back, no award yet', 'More than one enquiry, nothing awarded yet'),
     ('one_off', 'One enquiry only', 'Single enquiry, not awarded'),
 ]
-_REFERRAL_PALETTE = {'google': '#4285f4', 'recommendation': '#10b981', 'other': '#6b7280'}
+_REFERRAL_PALETTE = {'google': '#4285f4', 'recommendation': '#10b981',
+                     'website_form': '#f59e0b', 'other': '#6b7280'}
 
 
 def referral_conversion_stats(enquiries):

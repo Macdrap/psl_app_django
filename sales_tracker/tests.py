@@ -104,6 +104,12 @@ class AddSalesEnquiryTests(LoggedInTestCase):
         self.assertEqual(SalesEnquiry.objects.get(job_number='1').referral, 'google')
         self.assertIsNone(SalesEnquiry.objects.get(job_number='2').referral)
 
+    def test_website_contact_form_referral_saved(self):
+        self.post_add(job_number='1', client_status='new', referral='website_form', company_name='WebCo')
+        self.assertEqual(SalesEnquiry.objects.get(job_number='1').referral, 'website_form')
+        resp = self.client.get(reverse('sales_tracker'))
+        self.assertContains(resp, 'Website Contact Form')
+
     def test_redirect_keeps_list_state(self):
         resp = self.client.post(
             reverse('add_sales_enquiry') + '?page=3&sort_by=job_number&per_page=200&scroll=850&search=x',

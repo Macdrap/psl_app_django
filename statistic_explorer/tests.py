@@ -8,6 +8,7 @@ from unittest import mock
 from django.urls import reverse
 
 from clients.models import SECTOR_CHOICES
+from sales_tracker.models import SalesEnquiry
 from psl_app_project.test_utils import LoggedInTestCase
 
 
@@ -34,6 +35,14 @@ class StatisticExplorerTests(LoggedInTestCase):
         colours = resp.context['sector_chart_colors']
         self.assertEqual(len(colours), len(SECTOR_CHOICES))
         self.assertEqual(len(set(colours)), len(colours))
+
+    def test_every_referral_source_gets_a_distinct_colour(self):
+        # Adding a source to SalesEnquiry.REFERRAL_CHOICES needs a colour in
+        # _REFERRAL_PALETTE in statistic_explorer/views.py.
+        from statistic_explorer.views import _REFERRAL_PALETTE
+        codes = [code for code, _ in SalesEnquiry.REFERRAL_CHOICES]
+        self.assertEqual(set(_REFERRAL_PALETTE), set(codes))
+        self.assertEqual(len(set(_REFERRAL_PALETTE.values())), len(codes))
 
     def test_pdf_export_returns_pdf_when_weasyprint_works(self):
         fake = types.ModuleType('weasyprint')
