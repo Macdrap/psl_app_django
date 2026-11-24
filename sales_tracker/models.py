@@ -25,6 +25,7 @@ class SalesEnquiry(models.Model):
     REFERRAL_CHOICES = [
         ('google', 'Google'),
         ('recommendation', 'Recommendation'),
+        ('website_form', 'Website Contact Form'),
         ('other', 'Other'),
     ]
 

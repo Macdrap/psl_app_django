@@ -9,6 +9,7 @@ Reconstructed from git history. Newest first.
 - Referral source is now per client: every enquiry from a client carries the same referral. New enquiries for an existing client inherit it; changing it on any enquiry updates all of that client's enquiries; moving an enquiry to another client takes that client's referral. Logic in `sales_tracker/client_sync.py`.
 - A `new` client automatically becomes `current` once it has more than one enquiry.
 - Statistic Explorer: **New Client Conversion** in Referral Analysis — for new clients from Google / Recommendation / Other whose first enquiry was in the selected period: how many came back for another enquiry, how many won work, and how many converted (came back *and* awarded), with enquiries per client, awarded jobs/value, an outcome bar per source and a per-client list linking to Sales Tracker. Totals table in the PDF export.
+- New referral source **Website Contact Form** (`website_form`, migration `sales_tracker/0018`); amber in Statistic Explorer charts.
 - Migration `sales_tracker/0017` applies both rules to existing data (conflicting referrals → the client's earliest enquiry wins).
 
 ## 2026-11-23 — Version 1.1.1

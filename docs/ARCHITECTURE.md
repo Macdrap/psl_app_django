@@ -46,7 +46,7 @@ Auth: Django's built-in login (`/login/`, `templates/registration/login.html`). 
 - `date`, `value` (Decimal), `location`, `note`.
 - `status`: `Pending` (default), `Rejected`, `Awarded`, `Not_Quoted`.
 - `feedback`: Price / Timeframe / Capability / Other, plus `other_feedback` text.
-- `referral`: google / recommendation / other — **a client-level value stored on every enquiry**: all enquiries of a client share it (see flow 9). Entered on the add form only when Client Status is `new`; editable on the edit form.
+- `referral`: google / recommendation / website_form (Website Contact Form) / other — adding a source also needs a colour in `_REFERRAL_PALETTE` (`statistic_explorer/views.py`, tested) and a migration — **a client-level value stored on every enquiry**: all enquiries of a client share it (see flow 9). Entered on the add form only when Client Status is `new`; editable on the edit form.
 - `client` FK (**PROTECT** — a client with enquiries can't be deleted), `contact` FK (SET_NULL).
 - `created_by`, `created_at`, `updated_at` (the last is used by live-refresh polling).
 
