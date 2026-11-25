@@ -13,11 +13,11 @@ Reconstructed from git history. Newest first.
 - Statistic Explorer: "Sales Enquiries by Status" shows Average, Lowest and Highest quote value for the selected period (also in the PDF export). £0 quotes are excluded as unpriced.
 - Statistic Explorer: new **Client Analysis** section — one row per client quoted for (quotes, total quoted, awarded count/value, win rate, average quote, last quote), sortable, top 20 with "Show all", and a client search that opens a detail card (awarded/pending/rejected, win rate by count and value, link to the client's enquiries in Sales Tracker). Follows the date filter; top 20 in the PDF export. A quote = Pending/Awarded/Rejected enquiry over £0 (`SalesEnquiry.QUOTED_STATUSES`).
 - Clients page: each client shows a "£X quoted" badge (all time) linking to its figures in Statistic Explorer (`?client=<name>`).
-- Referral source is now per client: every enquiry from a client carries the same referral. New enquiries for an existing client inherit it; changing it on any enquiry updates all of that client's enquiries; moving an enquiry to another client takes that client's referral. Logic in `sales_tracker/client_sync.py`.
+- Referral source is per enquiry and always shown on the add form. A new enquiry for an existing client defaults to the referral of that client's previous enquiry (pre-filled when the client is picked from the dropdown, and applied on save if left blank); it can be changed on add or edit without affecting the client's other enquiries. Logic in `sales_tracker/client_sync.py`.
 - A `new` client automatically becomes `current` once it has more than one enquiry.
 - Statistic Explorer: **New Client Conversion** in Referral Analysis — for new clients from Google / Recommendation / Other whose first enquiry was in the selected period: how many came back for another enquiry, how many won work, and how many converted (came back *and* awarded), with enquiries per client, awarded jobs/value, an outcome bar per source and a per-client list linking to Sales Tracker. Totals table in the PDF export.
 - New referral source **Website Contact Form** (`website_form`, migration `sales_tracker/0018`); amber in Statistic Explorer charts.
-- Migration `sales_tracker/0017` applies both rules to existing data (conflicting referrals → the client's earliest enquiry wins).
+- Migration `sales_tracker/0017` promotes existing `new` clients with 2+ enquiries to `current`. It does **not** change any referral source: existing referral data stays as it is.
 
 ## 2026-11-23 — Version 1.1.1
 - Docs: `CLAUDE.md`, `docs/` (architecture, deployment, known issues, changelog), rewritten README, `.env.example`.

@@ -115,7 +115,7 @@ class ClientApiTests(LoggedInTestCase):
         self.make_contact(client, 'John', email='j@example.com')
         data = self.client.get(reverse('client_autocomplete'), {'q': 'acm'}).json()
         self.assertEqual(data, [{'id': client.pk, 'name': 'Acme Ltd', 'contact_name': 'John',
-                                 'email': 'j@example.com', 'phone': ''}])
+                                 'email': 'j@example.com', 'phone': '', 'last_referral': ''}])
         self.assertEqual(self.client.get(reverse('client_autocomplete')).json(), [])
 
     def test_contacts_api(self):

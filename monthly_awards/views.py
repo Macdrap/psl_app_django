@@ -9,7 +9,7 @@ from datetime import datetime
 from .models import MonthlyAward
 from .forms import MonthlyAwardForm
 from invoiced_jobs.models import InvoicedJob
-from sales_tracker.client_sync import sync_moved_enquiry
+from sales_tracker.client_sync import promote_new_client
 
 
 def get_or_create_client(company_name, contact_name, email, phone, sector=None, client_status=None):
@@ -259,14 +259,13 @@ def edit_monthly_award(request, pk):
             # the enquiry's quote.
             if updated_award.sale:
                 sale = updated_award.sale
-                old_sale_client_id, old_sale_referral = sale.client_id, sale.referral
                 sale.job_number = updated_award.job_number
                 sale.location = updated_award.location
                 sale.client = updated_award.client
                 sale.contact = updated_award.contact
                 sale.save()
-                # Moving the sale to another client: keep referral/status consistent
-                sync_moved_enquiry(sale, old_sale_client_id, old_sale_referral)
+                # Moving the sale onto a `new` client may promote it to `current`
+                promote_new_client(sale.client)
 
             # A changed split goes onto the invoice (single-invoice awards only)
             if updated_award.get_survey_type_values() != old_split and updated_award.apply_split_to_invoice():
