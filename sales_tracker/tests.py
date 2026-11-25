@@ -101,11 +101,18 @@ class AddSalesEnquiryTests(LoggedInTestCase):
         contact = Contact.objects.get(name='John Doe')
         self.assertEqual((contact.email, contact.phone), ('new@example.com', '999'))
 
-    def test_referral_only_kept_for_new_clients(self):
+    def test_referral_kept_whatever_the_client_status(self):
         self.post_add(job_number='1', client_status='new', referral='google', company_name='NewCo')
-        self.post_add(job_number='2', client_status='current', referral='google', company_name='OldCo')
+        self.post_add(job_number='2', client_status='current', referral='other', company_name='OldCo')
+        self.post_add(job_number='3', client_status='current', referral='', company_name='BlankCo')
         self.assertEqual(SalesEnquiry.objects.get(job_number='1').referral, 'google')
-        self.assertIsNone(SalesEnquiry.objects.get(job_number='2').referral)
+        self.assertEqual(SalesEnquiry.objects.get(job_number='2').referral, 'other')
+        self.assertIsNone(SalesEnquiry.objects.get(job_number='3').referral)
+
+    def test_add_form_always_shows_referral_field(self):
+        resp = self.client.get(reverse('add_sales_enquiry'))
+        self.assertContains(resp, 'name="referral"')
+        self.assertNotContains(resp, 'id="referral-field" style="display:none')
 
     def test_website_contact_form_referral_saved(self):
         self.post_add(job_number='1', client_status='new', referral='website_form', company_name='WebCo')
@@ -293,8 +300,9 @@ class PollEndpointTests(LoggedInTestCase):
 
 
 class ClientReferralAndStatusTests(LoggedInTestCase):
-    """Referral source is shared by all of a client's enquiries, and a `new`
-    client becomes `current` once it has more than one enquiry."""
+    """Referral source is per enquiry (a new enquiry defaults to the client's
+    previous one), and a `new` client becomes `current` once it has more than
+    one enquiry."""
 
     post_add = AddSalesEnquiryTests.post_add
 
@@ -311,50 +319,52 @@ class ClientReferralAndStatusTests(LoggedInTestCase):
 
     # ---- referral ----------------------------------------------------------
 
-    def test_new_enquiry_for_existing_client_inherits_referral(self):
-        self.post_add(job_number='1', company_name='NewCo', client_status='new', referral='google')
-        self.post_add(job_number='2', company_name='NewCo', client_status='current', referral='')
-        self.assertEqual(SalesEnquiry.objects.get(job_number='2').referral, 'google')
-
-    def test_referral_given_on_add_applies_to_clients_earlier_enquiries(self):
+    def test_new_enquiry_defaults_to_clients_previous_referral(self):
         acme = self.make_client('Acme Ltd')
-        self.make_enquiry(job_number='1', client=acme)
-        self.post_add(job_number='2', company_name='Acme Ltd', client_status='new', referral='recommendation')
-        self.assertEqual(self.referrals('Acme Ltd'), {'recommendation'})
+        self.make_enquiry(job_number='1', client=acme, referral='google', date=date(2026, 1, 1))
+        self.make_enquiry(job_number='2', client=acme, referral='recommendation', date=date(2026, 2, 1))
+        self.make_enquiry(job_number='3', client=acme, date=date(2026, 3, 1))  # none recorded
+        self.post_add(job_number='4', company_name='Acme Ltd', referral='')
+        self.assertEqual(SalesEnquiry.objects.get(job_number='4').referral, 'recommendation')
 
-    def test_editing_referral_updates_all_of_that_clients_enquiries_only(self):
-        acme, bravo = self.make_client('Acme Ltd'), self.make_client('Bravo Ltd')
+    def test_client_without_previous_referral_gets_none(self):
+        self.make_enquiry(job_number='1', client=self.make_client('Acme Ltd'))
+        self.post_add(job_number='2', company_name='Acme Ltd', referral='')
+        self.assertIsNone(SalesEnquiry.objects.get(job_number='2').referral)
+
+    def test_referral_chosen_on_add_overrides_default_and_leaves_others_alone(self):
+        acme = self.make_client('Acme Ltd')
+        self.make_enquiry(job_number='1', client=acme, referral='google')
+        self.post_add(job_number='2', company_name='Acme Ltd', referral='website_form')
+        self.assertEqual(SalesEnquiry.objects.get(job_number='2').referral, 'website_form')
+        self.assertEqual(SalesEnquiry.objects.get(job_number='1').referral, 'google')
+
+    def test_editing_referral_changes_only_that_enquiry(self):
+        acme = self.make_client('Acme Ltd')
         first = self.make_enquiry(job_number='1', client=acme, referral='google')
         self.make_enquiry(job_number='2', client=acme, referral='google')
-        self.make_enquiry(job_number='3', client=bravo, contact=self.make_contact(bravo), referral='google')
         self.edit(first, referral='other')
-        self.assertEqual(self.referrals('Acme Ltd'), {'other'})
-        self.assertEqual(self.referrals('Bravo Ltd'), {'google'})
+        self.assertEqual(first.referral, 'other')
+        self.assertEqual(SalesEnquiry.objects.get(job_number='2').referral, 'google')
 
-    def test_clearing_referral_clears_it_for_the_whole_client(self):
+    def test_clearing_referral_on_edit_only_clears_that_enquiry(self):
         acme = self.make_client('Acme Ltd')
         first = self.make_enquiry(job_number='1', client=acme, referral='google')
         self.make_enquiry(job_number='2', client=acme, referral='google')
         self.edit(first, referral='')
-        self.assertEqual(self.referrals('Acme Ltd'), {None})
+        self.assertIsNone(first.referral)
+        self.assertEqual(SalesEnquiry.objects.get(job_number='2').referral, 'google')
 
-    def test_moving_enquiry_to_another_client_takes_that_clients_referral(self):
+    def test_moving_enquiry_to_another_client_keeps_its_own_referral(self):
         acme, bravo = self.make_client('Acme Ltd'), self.make_client('Bravo Ltd')
         moved = self.make_enquiry(job_number='1', client=acme, referral='google')
         self.make_enquiry(job_number='2', client=bravo, contact=self.make_contact(bravo),
                           referral='recommendation')
         self.edit(moved, company_name='Bravo Ltd', referral='google')
-        self.assertEqual(moved.client, bravo)
-        self.assertEqual(self.referrals('Bravo Ltd'), {'recommendation'})
+        self.assertEqual((moved.client, moved.referral), (bravo, 'google'))
+        self.assertEqual(SalesEnquiry.objects.get(job_number='2').referral, 'recommendation')
 
-    def test_moving_enquiry_to_client_without_referral_carries_it_over(self):
-        acme, bravo = self.make_client('Acme Ltd'), self.make_client('Bravo Ltd')
-        moved = self.make_enquiry(job_number='1', client=acme, referral='google')
-        self.make_enquiry(job_number='2', client=bravo, contact=self.make_contact(bravo))
-        self.edit(moved, company_name='Bravo Ltd', referral='google')
-        self.assertEqual(self.referrals('Bravo Ltd'), {'google'})
-
-    def test_moving_sale_via_award_edit_takes_new_clients_referral_and_status(self):
+    def test_moving_sale_via_award_edit_keeps_referral_and_promotes_client(self):
         from monthly_awards.tests import award_payload
         acme = self.make_client('Acme Ltd')
         bravo = self.make_client('Bravo Ltd', client_status='new')
@@ -366,8 +376,18 @@ class ClientReferralAndStatusTests(LoggedInTestCase):
                          award_payload(company_name='Bravo Ltd'))
         sale.refresh_from_db()
         bravo.refresh_from_db()
-        self.assertEqual((sale.client, sale.referral), (bravo, 'other'))
+        self.assertEqual((sale.client, sale.referral), (bravo, 'google'))
+        self.assertEqual(SalesEnquiry.objects.get(job_number='2').referral, 'other')
         self.assertEqual(bravo.client_status, 'current')
+
+    def test_autocomplete_returns_clients_last_referral_for_prefill(self):
+        acme = self.make_client('Acme Ltd')
+        self.make_enquiry(job_number='1', client=acme, referral='google', date=date(2026, 1, 1))
+        self.make_enquiry(job_number='2', client=acme, referral='other', date=date(2026, 2, 1))
+        self.make_client('Acme Bravo')
+        data = {c['name']: c for c in self.client.get(reverse('client_autocomplete'), {'q': 'acme'}).json()}
+        self.assertEqual(data['Acme Ltd']['last_referral'], 'other')
+        self.assertEqual(data['Acme Bravo']['last_referral'], '')
 
     # ---- new -> current ----------------------------------------------------
 
@@ -394,7 +414,7 @@ class ClientReferralAndStatusTests(LoggedInTestCase):
 
     # ---- migration 0017 ----------------------------------------------------
 
-    def test_migration_0017_syncs_existing_referrals_and_statuses(self):
+    def test_migration_0017_promotes_statuses_and_leaves_referrals_alone(self):
         import importlib
         from django.apps import apps
         migration = importlib.import_module('sales_tracker.migrations.0017_sync_client_referral_and_status')
@@ -414,7 +434,10 @@ class ClientReferralAndStatusTests(LoggedInTestCase):
 
         migration.sync_existing(apps, None)
 
-        self.assertEqual(self.referrals('Mixed Ltd'), {'recommendation'})  # earliest wins
+        # Referral data is never changed
+        self.assertEqual(
+            dict(SalesEnquiry.objects.filter(client=mixed).values_list('job_number', 'referral')),
+            {'1': None, '2': 'recommendation', '3': 'google'})
         self.assertEqual(self.referrals('Plain Ltd'), {None})
         statuses = dict(Client.objects.values_list('name', 'client_status'))
         self.assertEqual((statuses['Mixed Ltd'], statuses['Plain Ltd'], statuses['Sleepy Ltd']),

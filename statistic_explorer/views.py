@@ -219,8 +219,8 @@ def referral_conversion_stats(enquiries):
 
     all_of_cohort = SalesEnquiry.objects.filter(client_id__in=period_first.keys())
 
-    # Referral belongs to the client (sales_tracker/client_sync.py keeps all of
-    # a client's enquiries in step); if they ever differ, the earliest wins.
+    # Referral is stored per enquiry; a client counts under the referral of
+    # its earliest enquiry that has one (how the client first found us).
     referral_of = {}
     for client_id, referral in (all_of_cohort
                                 .exclude(referral__isnull=True).exclude(referral='')

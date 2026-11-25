@@ -271,6 +271,7 @@ def client_autocomplete(request):
             .distinct()
             .order_by('name')[:10]
         )
+        from sales_tracker.client_sync import client_referral
         for c in clients:
             first_contact = c.contacts.first()
             results.append({
@@ -279,6 +280,8 @@ def client_autocomplete(request):
                 'contact_name': first_contact.name if first_contact else '',
                 'email': first_contact.email or '' if first_contact else '',
                 'phone': first_contact.phone or '' if first_contact else '',
+                # Pre-fills the add-enquiry form's referral source
+                'last_referral': client_referral(c) or '',
             })
 
     return JsonResponse(results, safe=False)

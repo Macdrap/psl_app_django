@@ -6,7 +6,7 @@ from django.urls import reverse
 from urllib.parse import urlencode
 from .models import SalesEnquiry
 from .forms import SalesEnquiryAddForm, SalesEnquiryEditForm
-from .client_sync import client_referral, set_client_referral, promote_new_client, sync_moved_enquiry
+from .client_sync import client_referral, promote_new_client
 from .survey_types import invoice_fields_from_split
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
@@ -163,17 +163,12 @@ def add_sales_enquiry(request):
             enquiry.client = client
             enquiry.contact = contact
 
-            # Referral source belongs to the client: it is only entered for new
-            # clients; otherwise the enquiry inherits the client's existing one.
-            referral = form.cleaned_data.get('referral') or None
-            if client_status == 'new' and referral:
-                enquiry.referral = referral
-            else:
-                enquiry.referral = client_referral(client)
+            # Referral source is per enquiry. Left blank, it defaults to the
+            # referral of the client's previous enquiry (the form pre-fills
+            # that too when a client is picked from the dropdown).
+            enquiry.referral = form.cleaned_data.get('referral') or client_referral(client)
 
             enquiry.save()
-            if enquiry.referral:
-                set_client_referral(client, enquiry.referral)
             promote_new_client(client)
             messages.success(request, 'Sales enquiry added successfully!')
             # Redirect back to the same page with filters and scroll
@@ -208,8 +203,6 @@ def edit_sales_enquiry(request, pk):
     """Edit existing sales enquiry"""
     enquiry = get_object_or_404(SalesEnquiry, pk=pk)
     old_status = enquiry.status
-    old_client_id = enquiry.client_id
-    old_referral = enquiry.referral
 
     # Get the page, sort, search, and per_page from the request
     page = request.GET.get('page', '1')
@@ -246,8 +239,8 @@ def edit_sales_enquiry(request, pk):
             updated_enquiry.client = client
             updated_enquiry.contact = contact
             updated_enquiry.save()
-            # Referral source is shared by all of the client's enquiries
-            sync_moved_enquiry(updated_enquiry, old_client_id, old_referral)
+            # Referral is per enquiry; moving it to a `new` client may promote it
+            promote_new_client(client)
 
             from monthly_awards.models import MonthlyAward
             from invoiced_jobs.models import InvoicedJob

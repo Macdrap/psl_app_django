@@ -1,34 +1,25 @@
-"""Keep client-level facts consistent across a client's sales enquiries.
+"""Client-level helpers used when enquiries are created or moved.
 
-- Referral source belongs to the client: every enquiry from the same client
-  carries the same `referral` value.
+- Referral source is stored per enquiry and can differ between a client's
+  enquiries. A new enquiry for an existing client defaults to the referral of
+  that client's previous enquiry (`client_referral`); it can be changed on the
+  add or edit form without affecting the client's other enquiries.
 - A client marked `new` becomes `current` once it has more than one enquiry.
 
-Called from the views that create an enquiry or can move one to another
-client (Sales Tracker add/edit, Monthly Award edit). Migration
-`sales_tracker/0017` applied the same rules to existing data.
+Called from Sales Tracker add/edit and Monthly Award edit. Migration
+`sales_tracker/0017` (applied 2026-11) once copied each client's referral to
+all its enquiries; since then nothing syncs referrals between enquiries.
 """
 
 
 def client_referral(client, exclude_pk=None):
-    """The referral source already recorded for `client`, or None.
-
-    All of a client's enquiries share one value; if they somehow differ, the
-    earliest enquiry's value (how the client first found us) wins.
-    """
+    """The referral source of `client`'s most recent enquiry that has one, or None."""
     if client is None:
         return None
     qs = client.sales_enquiries.exclude(referral__isnull=True).exclude(referral='')
     if exclude_pk is not None:
         qs = qs.exclude(pk=exclude_pk)
-    return qs.order_by('date', 'created_at', 'pk').values_list('referral', flat=True).first()
-
-
-def set_client_referral(client, referral):
-    """Give every enquiry of `client` the same referral source (None clears it)."""
-    if client is None:
-        return
-    client.sales_enquiries.update(referral=referral or None)
+    return qs.order_by('-date', '-created_at', '-pk').values_list('referral', flat=True).first()
 
 
 def promote_new_client(client):
@@ -38,22 +29,3 @@ def promote_new_client(client):
     if client.sales_enquiries.count() > 1:
         client.client_status = 'current'
         client.save(update_fields=['client_status'])
-
-
-def sync_moved_enquiry(enquiry, old_client_id, old_referral):
-    """After `enquiry` was saved, keep its client's enquiries consistent.
-
-    If the enquiry moved to another client and its referral wasn't changed,
-    it takes the new client's existing referral (when that client has one).
-    Otherwise the enquiry's referral is applied to all of its client's
-    enquiries. Then the client is promoted from `new` if applicable.
-    """
-    client = enquiry.client
-    if client is None:
-        return
-    referral = enquiry.referral or None
-    if enquiry.client_id != old_client_id and referral == (old_referral or None):
-        referral = client_referral(client, exclude_pk=enquiry.pk) or referral
-    set_client_referral(client, referral)
-    enquiry.referral = referral
-    promote_new_client(client)

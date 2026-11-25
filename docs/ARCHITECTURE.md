@@ -46,7 +46,7 @@ Auth: Django's built-in login (`/login/`, `templates/registration/login.html`). 
 - `date`, `value` (Decimal), `location`, `note`.
 - `status`: `Pending` (default), `Rejected`, `Awarded`, `Not_Quoted`.
 - `feedback`: Price / Timeframe / Capability / Other, plus `other_feedback` text.
-- `referral`: google / recommendation / website_form (Website Contact Form) / other — adding a source also needs a colour in `_REFERRAL_PALETTE` (`statistic_explorer/views.py`, tested) and a migration — **a client-level value stored on every enquiry**: all enquiries of a client share it (see flow 9). Entered on the add form only when Client Status is `new`; editable on the edit form.
+- `referral`: google / recommendation / website_form (Website Contact Form) / other — adding a source also needs a colour in `_REFERRAL_PALETTE` (`statistic_explorer/views.py`, tested) and a migration — **per enquiry**: a client's enquiries can differ. On the add form it is always shown and defaults to the client's previous enquiry's referral (see flow 9); editable on the edit form.
 - `client` FK (**PROTECT** — a client with enquiries can't be deleted), `contact` FK (SET_NULL).
 - `survey_types` — Postgres `ArrayField` of survey type codes (one or more, optional, any status). See **Survey types** below.
 - `survey_type_values` — `JSONField` `{code: "600.00"}`, the value per survey type. **When any survey type is ticked, `value` = the sum of these** (set by `SurveyTypeValuesMixin` in `sales_tracker/forms.py`); with none ticked, `value` is typed in as before and this is `{}` — only allowed for old records: **awarding needs at least one survey type**. `{}` also means "never split" (legacy data). `get_survey_type_values()` returns Decimals.
@@ -81,8 +81,8 @@ All in `sales_tracker/views.py::edit_sales_enquiry` unless noted.
 7. **Delete a Sales Enquiry**: its awards and their invoices cascade-delete.
 8. **Manual award** (`add_monthly_award`): no sale, no invoice — invoices are added from the awards page (`add_invoice_to_award`) or the Invoiced Jobs page.
 9. **Client referral & status** (`sales_tracker/client_sync.py`, called by `add_sales_enquiry`, `edit_sales_enquiry` and `edit_monthly_award`):
-   - Add: a referral given (Client Status `new`) is applied to all the client's enquiries; otherwise the new enquiry inherits the client's existing referral.
-   - Edit: the enquiry's referral (including blank) is applied to all the client's enquiries. If the enquiry moved to another client and the referral wasn't changed, it takes the new client's referral (if that client has one).
+   - Add: picking a client from the dropdown pre-fills Referral Source with `client_referral()` (the client's most recent enquiry that has a referral, returned as `last_referral` by `client_autocomplete`), unless the user already chose one. On save, a blank referral falls back to the same value. Nothing else is changed.
+   - Edit (enquiry or award): the referral only ever changes on that enquiry, also when it moves to another client.
    - A `new` client with more than one enquiry becomes `current` (never touches `dormant`, never goes back to `new`).
 
 ## Survey types (departments)
@@ -144,7 +144,7 @@ Used during the 1.1.0 client normalisation; safe to re-run, all support `--dry-r
 - `sales_tracker` 0012–0015 / `monthly_awards` 0004–0006: moved free-text client fields into `Client`/`Contact` (add FK → data migration `sales_tracker/0013` → drop old fields → add contact FK).
 - `clients/0005` renames a column with guarded raw SQL so it's a no-op where already applied — pattern to copy for any risky migration.
 - `clients/0006` (2026-11-23): records the Flood Consultancy choice; choices-only, no SQL.
-- `sales_tracker/0017` (2026-11-23): data-only — copies each client's referral to all its enquiries (earliest enquiry's value wins on conflict) and promotes `new` clients with >1 enquiry to `current`. Re-runnable; reverse is a no-op.
+- `sales_tracker/0017` (2026-11-23): data-only — promotes `new` clients with >1 enquiry to `current`. Does not touch referrals (an unreleased draft copied each client's referral onto all its enquiries; removed before any production deploy so existing referral data is left as is). Re-runnable; reverse is a no-op.
 
 ## Tests
 
