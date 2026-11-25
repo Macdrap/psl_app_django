@@ -3,6 +3,9 @@
 Reconstructed from git history. Newest first.
 
 ## Unreleased (next version)
+
+## 2026-11-25 — Version 1.2.0
+Survey types, Client Analysis, per-enquiry referral source with client default, new-client conversion stats. Deploy rehearsed on a replica of the server with live data (all migrations applied, no rows lost, no referral changed, 8 `new` clients → `current`).
 - **Survey types (departments)**: CAD is renamed **MBS** (all existing CAD values are now MBS values — migration `invoiced_jobs/0010` renames the column in place); Utility, Topo and Contractor unchanged; new **Watercourse, CCTV Drainage, 3D Modelling, Drone Survey, Engineering**. One list in `sales_tracker/survey_types.py`.
 - Each job can have one or more survey types, chosen on the enquiry add/edit form at any status (no need to award it) and on the Monthly Award form; kept in sync between an enquiry and its award. A department given a value on an invoice is added to the job's survey types automatically.
 - New **Survey Type** column in Sales Tracker, Monthly Awards and Invoiced Jobs.

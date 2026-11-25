@@ -22,9 +22,13 @@
 
 `scripts/deploy.sh`: `down` → remove local images → `pull` db/nginx (picks up security patches) → `build --pull --no-cache` → `up -d` → wait 15 s → `migrate` → `collectstatic --clear` → show status/logs. The web container's start script (`scripts/start.sh`) also runs `migrate` and `collectstatic` before Gunicorn.
 
-### Next deploy after 2026-11-23
-- The image now installs WeasyPrint + Pango/fonts (PDF export), so the first build takes a little longer and the image is larger. It was test-built locally and produced a correct PDF.
-- Migrations `clients/0006` (no SQL) and `invoiced_jobs/0009` (changes follow-up status `"N/A"` → `"n_a"` on existing invoices) run automatically. Take a backup first.
+### Deploying Version 1.2.0 (server was on 1.1.1, commit `1651e4d`)
+- No Dockerfile / requirements / nginx changes since 1.1.1: the build is the same as last time.
+- 10 migrations run automatically, several of them changing data — **take a backup first**:
+  - `invoiced_jobs/0010` renames the CAD value column to MBS (in place) and adds the new department columns; `0011` gives awarded jobs survey types from their invoice values.
+  - `sales_tracker/0019`–`0021`, `monthly_awards/0007`–`0009`: survey types and value by survey type, back-filled where known.
+  - `sales_tracker/0017` promotes `new` clients with 2+ enquiries to `current` (does not touch referral sources); `0018` adds the Website Contact Form referral choice.
+- Rehearsed on 2026-11-25 against the 2026-11-24 live dump: all migrations applied, row counts unchanged, all pages 200, referral sources unchanged, 8 clients `new` → `current`.
 
 ### Before deploying
 1. Tests pass locally (`manage.py test --noinput`).
